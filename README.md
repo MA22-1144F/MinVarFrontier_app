@@ -21,8 +21,6 @@ Python と Streamlit を用いて開発された、株式の最小分散フロ�
 - 行：証券コード
 - 列：日付（YYYY-MM-DD）
 
-一部機能(株価データ取得など)はインターネット接続が必要です。
-
 ##デプロイ先（Streamlit Cloud）
 
 https://minvarfrontierapp-bg8btma7pxcm5daqspe2oc.streamlit.app/
