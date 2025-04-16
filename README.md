@@ -24,8 +24,9 @@ Python と Streamlit を用いて開発された、株式の最小分散フロ�
 - 列：日付（YYYY-MM-DD）
 
 ##デプロイ先（Streamlit Cloud）
-↓ここをクリックすると使えます。(スマートフォンでも一応使用可能です。)
-https://minvarfrontierapp-bg8btma7pxcm5daqspe2oc.streamlit.app/
+
+-↓ここをクリックすると使えます。(スマートフォンでも一応使用可能です。)
+-https://minvarfrontierapp-bg8btma7pxcm5daqspe2oc.streamlit.app/
 
 ##作成者
 - GitHub:https://github.com/MA22-1144F
