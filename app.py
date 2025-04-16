@@ -70,7 +70,23 @@ def get_japanese_name(code):
     return None
 
 # タイトル
-st.markdown("<h2 style='text-align: center;'>最小分散フロンティアの計算</h2>", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    .custom-title {
+        text-align: center;
+        font-size: 40px;
+        margin-bottom: 1rem;
+    }
+
+    /* モバイル表示（画面幅600px以下）ではフォントサイズを縮小 */
+    @media screen and (max-width: 600px) {
+        .custom-title {
+            font-size: 20px;
+        }
+    }
+    </style>
+    <div class='custom-title'>最小分散フロンティアの計算</div>
+""", unsafe_allow_html=True)
 
 # 入力方式選択
 input_mode = st.radio("データ入力方法を選択してください。", ["証券コード・銘柄名による入力", "CSVによる入力"], horizontal=False)
