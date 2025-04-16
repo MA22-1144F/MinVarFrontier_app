@@ -23,6 +23,7 @@ Python と Streamlit を用いて開発された、株式の最小分散フロ�
 
 ##デプロイ先（Streamlit Cloud）
 
+https://minvarfrontierapp-bg8btma7pxcm5daqspe2oc.streamlit.app/
 
 ##作成者
 - GitHub:
