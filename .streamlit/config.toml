@@ -9,6 +9,7 @@ font = "sans serif"              # フォント（serif / sans serif / monospace
 headless = true
 port = 8501
 enableCORS = false
+enableXsrfProtection = true
 
 [client]
 showSidebarNavigation = false
@@ -17,7 +18,3 @@ showSidebarNavigation = false
 gatherUsageStats = false
 serverAddress = "0.0.0.0"
 serverPort = 8501
-
-[general]
-pageTitle = "最小分散フロンティアの計算"   # タブに表示されるタイトル
-favicon = "favicon.png"                         # ブラウザタブのアイコン（絵文字 or 画像パス）
