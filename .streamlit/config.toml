@@ -1,0 +1,23 @@
+[theme]
+primaryColor = "#FF4B4B"         # 強調色（ボタンやリンク）
+backgroundColor = "#000000"      # 背景色（黒）
+secondaryBackgroundColor = "#1c1c1c"  # サイドバーなどの背景
+textColor = "#FFFFFF"            # テキスト色
+font = "sans serif"              # フォント（serif / sans serif / monospace）
+
+[server]
+headless = true
+port = 8501
+enableCORS = false
+
+[client]
+showSidebarNavigation = false
+
+[browser]
+gatherUsageStats = false
+serverAddress = "0.0.0.0"
+serverPort = 8501
+
+[general]
+pageTitle = "最小分散フロンティアの計算"   # タブに表示されるタイトル
+favicon = "📈"                         # ブラウザタブのアイコン（絵文字 or 画像パス）
