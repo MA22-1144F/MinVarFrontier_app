@@ -81,7 +81,7 @@ st.markdown("""
     /* モバイル表示（画面幅600px以下）ではフォントサイズを縮小 */
     @media screen and (max-width: 600px) {
         .custom-title {
-            font-size: 20px;
+            font-size: 25px;
         }
     }
     </style>
