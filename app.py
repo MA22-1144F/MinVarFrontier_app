@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import io
 
 # ページ設定とスタイル
-st.set_page_config(page_title="最小分散フロンティアの計算", layout="wide")
+st.set_page_config(page_title="最小分散フロンティアの計算", layout="centered")
 st.markdown("""
     <style>
     .block-container {
@@ -70,7 +70,7 @@ def get_japanese_name(code):
     return None
 
 # タイトル
-st.markdown("<h1 style='text-align: center;'>最小分散フロンティアの計算</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>最小分散フロンティアの計算</h2>", unsafe_allow_html=True)
 
 # 入力方式選択
 input_mode = st.radio("データ入力方法を選択してください。", ["証券コード・銘柄名による入力", "CSVによる入力"], horizontal=False)
@@ -103,17 +103,41 @@ if use_csv:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if uploaded_file:
-        df_csv = pd.read_csv(uploaded_file, index_col=0)
         try:
-            df_csv.columns = pd.to_datetime(df_csv.columns)
-        except Exception as e:
-            st.error(f"日付のパースに失敗しました: {e}")
-        df_csv_display = df_csv.copy()
-        df_csv_display.columns = df_csv_display.columns.strftime('%Y/%m/%d')
-        st.write("CSVのプレビュー")
-        st.dataframe(df_csv_display)
-        csv_mode = True
-        log_returns = np.log(df_csv / df_csv.shift(axis=1, periods=1)).dropna(axis=1)
+            df_csv = pd.read_csv(uploaded_file, index_col=0)
+            original_columns = df_csv.columns.tolist()
+
+            # 日付列パース
+            parsed_dates = pd.to_datetime(df_csv.columns, errors='coerce')
+            if parsed_dates.isnull().any():
+                raise ValueError("日付列の形式が不正")
+
+            df_csv.columns = parsed_dates
+
+            # 欠損値チェック
+            if df_csv.isnull().values.any():
+                raise ValueError("欠損値あり")
+
+            # 0以下の値チェック
+            if (df_csv <= 0).values.any():
+                raise ValueError("0以下の値あり")
+
+            # 日付列が最低2列あるか
+            if df_csv.shape[1] < 2:
+                raise ValueError("有効な日付列が不足")
+
+            # 表示用変換
+            df_csv_display = df_csv.copy()
+            df_csv_display.columns = df_csv_display.columns.strftime('%Y/%m/%d')
+            with st.expander("CSVのプレビューを表示"):
+                st.dataframe(df_csv_display)
+
+           # ログリターン計算
+            csv_mode = True
+            log_returns = np.log(df_csv / df_csv.shift(axis=1, periods=1)).dropna(axis=1)
+
+        except Exception:
+            st.error("CSVのデータが不正です。日付形式・欠損値・株価が0以下・列数などを確認してください。")
 
     min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=1.0, value=0.01, step=0.01)
     num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=100, value=50, step=1)
@@ -187,16 +211,28 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
         else:
             tickers = [s['code'] for s in st.session_state.selected_stocks]
             log_returns = []
+            close_data = pd.DataFrame()  # ← 各銘柄の終値を格納するデータフレーム
+
             for ticker in tickers:
                 df = yf.download(ticker + ".T", start=start_date, end=end_date, interval=interval)
                 if "Close" in df.columns and len(df) > 1:
                     df["LogReturn"] = np.log(df["Close"] / df["Close"].shift(1))
                     log_returns.append(df["LogReturn"].dropna().values)
+                    close_data[ticker] = df["Close"]  # ← 終値だけを保存
+
             log_returns = np.array([r for r in log_returns if len(r) == len(log_returns[0])])
             tickers = tickers[:len(log_returns)]
             mean_returns = np.mean(log_returns, axis=1)
             std_devs = np.std(log_returns, axis=1, ddof=0)
             cov_matrix = np.cov(log_returns)
+
+            # --- 株価時系列の表示を追加 ---
+            if not close_data.empty:
+                st.subheader("株価の時系列（終値）")
+                close_data_display = close_data.T  # 銘柄を行、日付を列にする
+                close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
+                st.dataframe(close_data_display.round(2), use_container_width=True)
+
 
         cov_matrix += np.eye(len(cov_matrix)) * 1e-10
         N = len(mean_returns)
@@ -250,37 +286,93 @@ if st.session_state.calculating:
 
 if st.session_state.result_data:
     data = st.session_state.result_data
-    st.subheader("各銘柄の標準偏差と期待利益率")
-    df_mean = pd.DataFrame({
-        "証券コード": data["tickers"],
-        "標準偏差": data["std_devs"],
-        "期待利益率": data["mean_returns"]
-    })
-    st.dataframe(df_mean.style.format({"標準偏差": "{:.5f}", "期待利益率": "{:.5f}"}), hide_index=True)
+    with st.expander("各銘柄の標準偏差と期待利益率を表示"):
+        df_mean = pd.DataFrame({
+            "証券コード": data["tickers"],
+            "標準偏差": data["std_devs"],
+            "期待利益率": data["mean_returns"]
+        })
+        st.dataframe(df_mean.style.format({"標準偏差": "{:.5f}", "期待利益率": "{:.5f}"}), hide_index=True)
 
-    st.subheader("最小分散フロンティア")
-    fig, ax = plt.subplots()
-    ax.plot(data["frontier_vol"], data["target_returns"], linestyle='-')
-    min_index = np.nanargmin(data["frontier_vol"])
-    x = data["frontier_vol"][min_index]
-    y = data["target_returns"][min_index]
-    ax.scatter(x, y, color='red', label='Minimum Risk Portfolio')
-    ax.set_xlabel("Standard Deviation")
-    ax.set_ylabel("Expected Return")
-    ax.legend(loc='upper left')
-    st.pyplot(fig)
+    # 相関行列の可視化（ヒートマップ）
+    with st.expander("銘柄間の相関行列（ヒートマップ）を表示"):
+        if st.session_state.result_data is not None and log_returns is not None:
+            tickers = st.session_state.result_data["tickers"]
+            try:
+                if use_csv:
+                    # CSVモード：行が銘柄、列が日付（既にDataFrame）
+                    corr_matrix = log_returns.T.corr()
+                else:
+                    # 銘柄名モード：log_returnsはnumpy配列なのでDataFrameに変換
+                    df_log = pd.DataFrame(log_returns.T, columns=tickers)
+                    corr_matrix = df_log.corr()
 
-    st.subheader("各期待利益率における標準偏差と投資割合")
-    weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
-    weight_df.insert(0, "標準偏差", data["frontier_vol"])
-    weight_df.insert(1, "期待利益率", data["target_returns"])
-    weight_df = weight_df.sort_values(by="期待利益率", ascending=False)
-    st.dataframe(weight_df.style.format("{:.5f}"), use_container_width=True, hide_index=True)
+                fig_corr, ax_corr = plt.subplots()
+                cax = ax_corr.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
 
-    csv = weight_df.to_csv(index=False).encode("utf-8-sig")
-    st.download_button(
-        label="CSVとしてダウンロード",
-        data=csv,
-        file_name="frontier_weights.csv",
-        mime="text/csv"
-    )
+                ax_corr.set_xticks(np.arange(len(tickers)))
+                ax_corr.set_yticks(np.arange(len(tickers)))
+                ax_corr.set_xticklabels(tickers, color='white', rotation=45, ha='right')
+                ax_corr.set_yticklabels(tickers, color='white')
+                ax_corr.tick_params(colors='white')
+
+                cbar = fig_corr.colorbar(cax)
+                cbar.ax.yaxis.set_tick_params(color='white')
+                plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
+
+                fig_corr.patch.set_facecolor('black')
+                ax_corr.set_facecolor('black')
+
+                st.pyplot(fig_corr)
+            except Exception as e:
+                st.error(f"相関行列の表示中にエラーが発生しました: {e}")
+        else:
+            st.info("相関行列を表示するには、まず計算を実行してください。")
+
+    with st.expander("最小分散フロンティアを表示"):
+
+        # 最小分散点のインデックス
+        min_index = np.nanargmin(data["frontier_vol"])
+
+        # 効率的フロンティア（右側のみ）
+        efficient_vol = data["frontier_vol"][min_index:]
+        efficient_returns = data["target_returns"][min_index:]
+
+        # グラフ描画（黒背景に調和）
+        fig, ax = plt.subplots(facecolor='black')
+        ax.set_facecolor('black')
+
+        # 最小分散フロンティア
+        ax.plot(data["frontier_vol"], data["target_returns"], linestyle='-', color='gray', label='Minimum Variance Frontier', zorder=1)
+
+        # 効率的フロンティア
+        ax.plot(efficient_vol, efficient_returns, linestyle='-', color='cyan', linewidth=2, label='Efficient Frontier', zorder=2)
+
+        # 最小リスクポートフォリオ
+        x = data["frontier_vol"][min_index]
+        y = data["target_returns"][min_index]
+        ax.scatter(x, y, color='red', label='Minimum Risk Portfolio', zorder=5)
+
+        # ラベル・軸・凡例の見た目調整
+        ax.set_xlabel("Standard Deviation", color='white')
+        ax.set_ylabel("Expected Return", color='white')
+        ax.tick_params(colors='white')
+        legend = ax.legend(loc='lower right', facecolor='black', labelcolor='white')
+        legend.get_frame().set_visible(False)  # ← ここで凡例の枠線を消す
+
+        st.pyplot(fig)
+
+    with st.expander("各期待利益率における標準偏差と投資割合を表示"):
+        weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
+        weight_df.insert(0, "標準偏差", data["frontier_vol"])
+        weight_df.insert(1, "期待利益率", data["target_returns"])
+        weight_df = weight_df.sort_values(by="期待利益率", ascending=False)
+        st.dataframe(weight_df.style.format("{:.5f}"), use_container_width=True, hide_index=True)
+
+        csv = weight_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label="CSVとしてダウンロード",
+            data=csv,
+            file_name="frontier_weights.csv",
+            mime="text/csv"
+        )
