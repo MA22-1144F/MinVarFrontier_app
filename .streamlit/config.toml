@@ -20,4 +20,4 @@ serverPort = 8501
 
 [general]
 pageTitle = "最小分散フロンティアの計算"   # タブに表示されるタイトル
-favicon = "📈"                         # ブラウザタブのアイコン（絵文字 or 画像パス）
+favicon = "favicon.png"                         # ブラウザタブのアイコン（絵文字 or 画像パス）
