@@ -21,15 +21,6 @@ Python と Streamlit を用いて開発された、株式の最小分散フロ�
 - 行：証券コード
 - 列：日付（YYYY-MM-DD）
 
-##オフラインでの使用方法
-
-1. 本リポジトリを `Code > Download ZIP` または `git clone` でダウンロード
-2. Python をインストール（3.10以上推奨）
-3. 以下のコマンドで必要なライブラリをインストール
-4. pip install -r requirements.txt
-5. Streamlit アプリを起動
-6. streamlit run app.py
-
 一部機能(株価データ取得など)はインターネット接続が必要です。
 
 ##デプロイ先（Streamlit Cloud）
