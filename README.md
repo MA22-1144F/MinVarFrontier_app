@@ -1,2 +1,14 @@
-# MinVarFrontier_app
-Python と Streamlit を用いて開発された、株式の最小分散フロンティアを計算・可視化するアプリケーションです。証券コード・銘柄名やCSVファイルからのデータ入力に対応し、ポートフォリオ最適化の学習や分析に利用できます。/A Streamlit web app for calculating and visualizing the Minimum Variance Frontier of selected stocks. Supports input via stock codes or CSV files, ideal for portfolio optimization and educational use.
+# 最小分散フロンティアの計算アプリ
+
+Python と Streamlit を用いて開発された、株式の最小分散フロンティアを計算・可視化するアプリケーションです。証券コード・銘柄名やCSVファイルからのデータ入力に対応し、ポートフォリオ最適化の学習や分析に利用できます。
+
+##主な機能
+
+・日本株・ETFの証券コード・銘柄名による銘柄の追加
+・CSVファイルによるデータの一括読み込み
+・ログリターンを用いた平均・標準偏差の計算
+・投資割合に制約を加えた最小分散フロンティアの作成
+・期待利益率、標準偏差、投資割合をCSVとして出力可能
+
+##必要なパッケージ
+
