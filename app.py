@@ -244,11 +244,10 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
 
             # --- 株価時系列の表示を追加 ---
             if not close_data.empty:
-                st.subheader("株価の時系列（終値）")
-                close_data_display = close_data.T  # 銘柄を行、日付を列にする
-                close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
-                st.dataframe(close_data_display.round(2), use_container_width=True)
-
+                with st.expander("株価の時系列（終値）を表示"):
+                    close_data_display = close_data.T  # 銘柄を行、日付を列にする
+                    close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
+                    st.dataframe(close_data_display.round(2), use_container_width=True)
 
         cov_matrix += np.eye(len(cov_matrix)) * 1e-10
         N = len(mean_returns)
