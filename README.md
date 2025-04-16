@@ -12,3 +12,12 @@ Python と Streamlit を用いて開発された、株式の最小分散フロ�
 
 ##必要なパッケージ
 
+streamlit
+pandas
+yfinance
+numpy
+matplotlib
+scipy
+openpyxl
+
+
