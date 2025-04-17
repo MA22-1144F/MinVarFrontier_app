@@ -87,10 +87,24 @@ st.markdown("""
     </style>
     <div class='custom-title'>最小分散フロンティアの計算</div>
 """, unsafe_allow_html=True)
+st.markdown("""
+<hr style='border: 1px solid white; margin: 25px 0;' />
+""", unsafe_allow_html=True)
 
 # 入力方式選択
+previous_input_mode = st.session_state.get("previous_input_mode", None)
 input_mode = st.radio("データ入力方法を選択してください。", ["証券コード・銘柄名による入力", "CSVによる入力"], horizontal=False)
+# モード変更を検出したら、結果をリセット
+if previous_input_mode is not None and input_mode != previous_input_mode:
+    st.session_state.result_data = None 
+    st.session_state.calculating = False
+    st.session_state.selected_stocks = []  
+
+# 今回のモードを保存
+st.session_state.previous_input_mode = input_mode
+
 use_csv = input_mode == "CSVによる入力"
+st.markdown("---")
 
 uploaded_file = None
 log_returns = None
@@ -98,26 +112,26 @@ csv_mode = False
 
 # ========== CSV入力モード ==========
 if use_csv:
-    st.subheader("CSVファイルをアップロード")
-    uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
+    col_csv, col_button = st.columns([5, 2])
+    with col_csv:
+        uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
 
-    sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
-    template_data = pd.DataFrame({
-        date.strftime("%Y-%m-%d"): [
-            np.random.randint(2000, 2500),
-            np.random.randint(10000, 12000),
-            np.random.randint(3000, 3500)
-        ] for date in sample_dates
-    }, index=["7203", "6758", "9432"])
-    template_data.index.name = ""
-    csv_buffer = io.StringIO()
-    template_data.to_csv(csv_buffer)
-    csv_data = csv_buffer.getvalue()
+        sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
+        template_data = pd.DataFrame({
+            date.strftime("%Y-%m-%d"): [
+                np.random.randint(2000, 2500),
+                np.random.randint(10000, 12000),
+                np.random.randint(3000, 3500)
+            ] for date in sample_dates
+        }, index=["7203", "6758", "9432"])
+        template_data.index.name = ""
+        csv_buffer = io.StringIO()
+        template_data.to_csv(csv_buffer)
+        csv_data = csv_buffer.getvalue()
 
-    st.markdown("<div class='template-button-container'>", unsafe_allow_html=True)
-    st.download_button("CSVテンプレートをダウンロード", data=csv_data, file_name="template.csv", mime="text/csv")
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    with col_button:
+        st.download_button("CSVテンプレートをDL", data=csv_data, file_name="template.csv", mime="text/csv")
+        
     if uploaded_file:
         try:
             df_csv = pd.read_csv(uploaded_file, index_col=0)
@@ -155,12 +169,11 @@ if use_csv:
         except Exception:
             st.error("CSVのデータが不正です。日付形式・欠損値・株価が0以下・列数などを確認してください。")
 
-    min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=1.0, value=0.01, step=0.01)
-    num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=100, value=50, step=1)
+    min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.01, step=0.01)
+    num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=500, value=50, step=1)
 
 # ========== 証券コード・銘柄名入力モード ==========
 if not use_csv:
-    st.subheader("銘柄を検索して追加")
     search_type = st.radio("検索方法を選んでください。", ["証券コードで検索", "銘柄名で検索"])
     input_value = st.text_input("検索キーワードを入力してください。")
     input_value = normalize_input(input_value)
@@ -187,7 +200,7 @@ if not use_csv:
                         st.session_state.selected_stocks.append({"code": selected_code, "name": selected_name})
 
     if st.session_state.selected_stocks:
-        st.subheader("選択中の銘柄リスト")
+        st.markdown("<p style='font-size: 20px; font-weight: normal;'>選択中の銘柄リスト</p>", unsafe_allow_html=True)
         for i, stock in enumerate(st.session_state.selected_stocks):
             col1, col2, col3 = st.columns([2, 4, 1])
             col1.write(stock["code"])
@@ -198,10 +211,11 @@ if not use_csv:
                     st.rerun()
         if st.button("リセット", key="reset", help="すべての選択をクリア", type="secondary"):
             st.session_state.selected_stocks = []
-            st.session_state.result_data = None  # ← この行を追加
+            st.session_state.result_data = None  
             st.rerun()
 
-        st.markdown("### 計算条件の設定")
+        st.markdown("---")
+
         def_date_end = date.today() - timedelta(days=1)
         def_date_start = def_date_end - timedelta(days=365)
         start_date = st.date_input("開始日", value=def_date_start)
@@ -210,7 +224,7 @@ if not use_csv:
         interval_map = {"日間": "1d", "週間": "1wk", "月間": "1mo"}
         interval = interval_map[span]
 
-        min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=1.0, value=0.01, step=0.01)
+        min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=1.0, value=0.01, step=0.001, format="%.3f")
         num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=100, value=50, step=1)
 
 # ========== 計算ボタンと実行 ==========
@@ -227,20 +241,33 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
         else:
             tickers = [s['code'] for s in st.session_state.selected_stocks]
             log_returns = []
-            close_data = pd.DataFrame()  # ← 各銘柄の終値を格納するデータフレーム
+            close_data = pd.DataFrame()  
 
             for ticker in tickers:
                 df = yf.download(ticker + ".T", start=start_date, end=end_date, interval=interval)
                 if "Close" in df.columns and len(df) > 1:
                     df["LogReturn"] = np.log(df["Close"] / df["Close"].shift(1))
                     log_returns.append(df["LogReturn"].dropna().values)
-                    close_data[ticker] = df["Close"]  # ← 終値だけを保存
+                    close_data[ticker] = df["Close"]  
 
             log_returns = np.array([r for r in log_returns if len(r) == len(log_returns[0])])
             tickers = tickers[:len(log_returns)]
             mean_returns = np.mean(log_returns, axis=1)
             std_devs = np.std(log_returns, axis=1, ddof=0)
             cov_matrix = np.cov(log_returns)
+
+        # 最小投資割合のバリデーションチェック
+        N = len(tickers)
+        if min_weight < 0 or min_weight >= 0.5:
+            st.error("最小投資割合は0以上0.5未満である必要があります。")
+            st.session_state.calculating = False
+            st.stop()
+
+        if min_weight >= (1 / N):
+            st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.2f} 未満である必要があります）。")
+            st.session_state.calculating = False
+            st.stop()
+
 
             # --- 株価時系列の表示を追加 ---
             if not close_data.empty:
@@ -315,7 +342,7 @@ if st.session_state.result_data:
             tickers = st.session_state.result_data["tickers"]
             try:
                 if use_csv:
-                    # CSVモード：行が銘柄、列が日付（既にDataFrame）
+                    # CSVモード：行が銘柄、列が日付
                     corr_matrix = log_returns.T.corr()
                 else:
                     # 銘柄名モード：log_returnsはnumpy配列なのでDataFrameに変換
@@ -349,7 +376,7 @@ if st.session_state.result_data:
         # 最小分散点のインデックス
         min_index = np.nanargmin(data["frontier_vol"])
 
-        # 効率的フロンティア（右側のみ）
+        # 効率的フロンティア
         efficient_vol = data["frontier_vol"][min_index:]
         efficient_returns = data["target_returns"][min_index:]
 
@@ -373,7 +400,7 @@ if st.session_state.result_data:
         ax.set_ylabel("Expected Return", color='white')
         ax.tick_params(colors='white')
         legend = ax.legend(loc='lower right', facecolor='black', labelcolor='white')
-        legend.get_frame().set_visible(False)  # ← ここで凡例の枠線を消す
+        legend.get_frame().set_visible(False)  
 
         st.pyplot(fig)
 
