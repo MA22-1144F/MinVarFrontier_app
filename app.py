@@ -366,6 +366,16 @@ if st.session_state.result_data:
                 ax_corr.set_facecolor('black')
 
                 st.pyplot(fig_corr)
+
+                # 相関係数のCSVダウンロードボタン
+                corr_csv = corr_matrix.round(5).to_csv(index=True, encoding="utf-8-sig")
+                st.download_button(
+                    label="相関係数をCSVとしてダウンロード",
+                    data=corr_csv,
+                    file_name="correlation_matrix.csv",
+                    mime="text/csv"
+                )
+
             except Exception as e:
                 st.error(f"相関行列の表示中にエラーが発生しました: {e}")
         else:
