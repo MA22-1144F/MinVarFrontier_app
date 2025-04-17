@@ -169,7 +169,7 @@ if use_csv:
         except Exception:
             st.error("CSVのデータが不正です。日付形式・欠損値・株価が0以下・列数などを確認してください。")
 
-    min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.01, step=0.01)
+    min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.01, step=0.001, format="%.3f")
     num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=500, value=50, step=1)
 
 # ========== 証券コード・銘柄名入力モード ==========
