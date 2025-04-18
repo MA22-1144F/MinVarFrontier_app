@@ -477,3 +477,11 @@ if st.session_state.result_data:
             file_name="frontier_weights.csv",
             mime="text/csv"
         )
+
+st.markdown("""
+    <hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
+    <div style='text-align: left; font-size: 0.8rem; color: gray;'>
+        本アプリは学習目的で作成されたものであり、投資判断への利用を想定したものではありません。<br> 利用によって生じたいかなる損害についても開発者は責任を負いかねます。
+    </div>
+""", unsafe_allow_html=True)
+
