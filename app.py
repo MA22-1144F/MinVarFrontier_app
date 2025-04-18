@@ -220,6 +220,14 @@ if not use_csv:
         def_date_start = def_date_end - timedelta(days=365)
         start_date = st.date_input("開始日", value=def_date_start)
         end_date = st.date_input("終了日", value=def_date_end)
+        today = date.today()
+        if end_date > today:
+            st.error("終了日は未来の日付に設定できません。")
+            st.stop()
+        if start_date >= end_date:
+            st.error("開始日は終了日より前の日付を設定してください。")
+            st.stop()
+
         span = st.radio("スパン（日間・週間・月間）", ["日間", "週間", "月間"])
         interval_map = {"日間": "1d", "週間": "1wk", "月間": "1mo"}
         interval = interval_map[span]
@@ -239,19 +247,53 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
             std_devs = df.std(axis=1, ddof=0).values
             cov_matrix = np.cov(df.values)
         else:
-            tickers = [s['code'] for s in st.session_state.selected_stocks]
+            original_tickers = [s['code'] for s in st.session_state.selected_stocks]
             log_returns = []
-            close_data = pd.DataFrame()  
+            close_data = pd.DataFrame()
+            valid_tickers = []
 
-            for ticker in tickers:
+            for ticker in original_tickers:
                 df = yf.download(ticker + ".T", start=start_date, end=end_date, interval=interval)
-                if "Close" in df.columns and len(df) > 1:
-                    df["LogReturn"] = np.log(df["Close"] / df["Close"].shift(1))
-                    log_returns.append(df["LogReturn"].dropna().values)
-                    close_data[ticker] = df["Close"]  
+                if df.empty or "Close" not in df.columns or df["Close"].dropna().shape[0] < 2:
+                    st.warning(f"{ticker} は指定期間に有効な株価データがありません。除外されます。")
+                    continue
 
-            log_returns = np.array([r for r in log_returns if len(r) == len(log_returns[0])])
-            tickers = tickers[:len(log_returns)]
+                df["LogReturn"] = np.log(df["Close"] / df["Close"].shift(1))
+                log_returns.append(df["LogReturn"].dropna().values)
+                close_data[ticker] = df["Close"]
+                valid_tickers.append(ticker)
+
+            if len(valid_tickers) < 2:
+                st.error("有効なデータを持つ銘柄が2つ以上必要です。期間を見直してください。")
+                st.session_state.calculating = False
+                st.stop()
+
+            # 長さの整合性を保つ（最短長の配列に揃える）
+            min_length = min(len(r) for r in log_returns)
+            log_returns = np.array([r[:min_length] for r in log_returns])
+            valid_days = close_data.shape[0] 
+
+            # 有効な株価データ日数（スパン単位での行数）
+            valid_days = close_data.shape[0]
+
+            # 想定されるスパン単位の日数
+            expected_days = (end_date - start_date).days
+            expected_count = {
+                "日間": expected_days,
+                "週間": expected_days // 7,
+                "月間": expected_days // 30
+            }[span]
+
+            # 警告表示（スパンに応じた単位で表示）
+            if valid_days < expected_count * 1:
+                st.warning(
+                    f"指定された期間（{expected_count}{span}）に対し、"
+                    f"共通の有効株価データが存在するのは {valid_days}{span} のみです。"
+                    f"新規上場などで一部銘柄のデータが不足している可能性があります。"
+                )
+
+            tickers = valid_tickers
+
             mean_returns = np.mean(log_returns, axis=1)
             std_devs = np.std(log_returns, axis=1, ddof=0)
             cov_matrix = np.cov(log_returns)
@@ -268,12 +310,12 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
             st.session_state.calculating = False
             st.stop()
 
-            # --- 株価時系列の表示を追加 ---
-            if not close_data.empty:
-                with st.expander("株価の時系列（終値）を表示"):
-                    close_data_display = close_data.T  # 銘柄を行、日付を列にする
-                    close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
-                    st.dataframe(close_data_display.round(2), use_container_width=True)
+        # --- 株価時系列の表示を追加 ---
+        if not close_data.empty:
+            with st.expander("株価の時系列（終値）を表示"):
+                close_data_display = close_data.T  # 銘柄を行、日付を列にする
+                close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
+                st.dataframe(close_data_display.round(2), use_container_width=True)
 
         cov_matrix += np.eye(len(cov_matrix)) * 1e-10
         N = len(mean_returns)
@@ -322,8 +364,6 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
         st.session_state.calculating = False
 
 # ========== 結果表示 ==========
-if st.session_state.calculating:
-    st.markdown("<span style='color: red; font-weight: bold;'>計算中...</span>", unsafe_allow_html=True)
 
 if st.session_state.result_data:
     data = st.session_state.result_data
