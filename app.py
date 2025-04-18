@@ -275,7 +275,8 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
             valid_days = close_data.shape[0] 
 
             # 有効な株価データ日数（スパン単位での行数）
-            valid_days = close_data.shape[0]
+            valid_columns = close_data.dropna(axis=0) 
+            valid_days = valid_columns.shape[0]
 
             # 想定されるスパン単位の日数
             expected_days = (end_date - start_date).days
