@@ -291,7 +291,6 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
                 st.warning(
                     f"指定された期間（{expected_count}{span}）に対し、"
                     f"共通の有効株価データが存在するのは {valid_days}{span} のみです。"
-                    f"新規上場などで一部銘柄のデータが不足している可能性があります。"
                 )
 
             tickers = valid_tickers
