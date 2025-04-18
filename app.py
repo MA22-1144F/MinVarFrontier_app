@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import io
+close_data = None  
 
 # ページ設定とスタイル
 st.set_page_config(page_title="最小分散フロンティアの計算", layout="centered")
@@ -311,7 +312,7 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
             st.stop()
 
         # --- 株価時系列の表示を追加 ---
-        if not close_data.empty:
+        if close_data is not None and not close_data.empty:
             with st.expander("株価の時系列（終値）を表示"):
                 close_data_display = close_data.T  # 銘柄を行、日付を列にする
                 close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
