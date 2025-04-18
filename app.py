@@ -303,7 +303,7 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
         # 最小投資割合のバリデーションチェック
         N = len(tickers)
         if min_weight >= (1 / N):
-            st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.2f} 未満である必要があります）。")
+            st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.4f} 未満である必要があります）。")
             st.session_state.calculating = False
             st.stop()
 
