@@ -354,6 +354,11 @@ if (use_csv and log_returns is not None) or (not use_csv and len(st.session_stat
                 frontier_vol.append(result.fun)
                 frontier_weights.append(result.x)
 
+        if len(frontier_vol) == 0:
+            st.error("最小分散フロンティアの計算に失敗しました。銘柄数・期間・最小投資割合を見直してください。")
+            st.session_state.calculating = False
+            st.stop()
+
         st.session_state.result_data = {
             "tickers": tickers,
             "mean_returns": mean_returns,
@@ -423,36 +428,39 @@ if st.session_state.result_data:
 
     with st.expander("最小分散フロンティアを表示"):
 
-        # 最小分散点のインデックス
-        min_index = np.nanargmin(data["frontier_vol"])
+        if data["frontier_vol"] is None or len(data["frontier_vol"]) == 0:
+            st.error("最小分散フロンティアが正常に計算されていません。銘柄数やデータ期間、最小投資割合の条件を見直してください。")
+        else:
+            # 最小分散点のインデックス
+            min_index = np.nanargmin(data["frontier_vol"])
 
-        # 効率的フロンティア
-        efficient_vol = data["frontier_vol"][min_index:]
-        efficient_returns = data["target_returns"][min_index:]
+            # 効率的フロンティア
+            efficient_vol = data["frontier_vol"][min_index:]
+            efficient_returns = data["target_returns"][min_index:]
 
-        # グラフ描画（黒背景に調和）
-        fig, ax = plt.subplots(facecolor='black')
-        ax.set_facecolor('black')
+            # グラフ描画（黒背景に調和）
+            fig, ax = plt.subplots(facecolor='black')
+            ax.set_facecolor('black')
 
-        # 最小分散フロンティア
-        ax.plot(data["frontier_vol"], data["target_returns"], linestyle='-', color='gray', label='Minimum Variance Frontier', zorder=1)
+            # 最小分散フロンティア
+            ax.plot(data["frontier_vol"], data["target_returns"], linestyle='-', color='gray', label='Minimum Variance Frontier', zorder=1)
 
-        # 効率的フロンティア
-        ax.plot(efficient_vol, efficient_returns, linestyle='-', color='cyan', linewidth=2, label='Efficient Frontier', zorder=2)
+            # 効率的フロンティア
+            ax.plot(efficient_vol, efficient_returns, linestyle='-', color='cyan', linewidth=2, label='Efficient Frontier', zorder=2)
 
-        # 最小リスクポートフォリオ
-        x = data["frontier_vol"][min_index]
-        y = data["target_returns"][min_index]
-        ax.scatter(x, y, color='red', label='Minimum Risk Portfolio', zorder=5)
+            # 最小リスクポートフォリオ
+            x = data["frontier_vol"][min_index]
+            y = data["target_returns"][min_index]
+            ax.scatter(x, y, color='red', label='Minimum Risk Portfolio', zorder=5)
 
-        # ラベル・軸・凡例の見た目調整
-        ax.set_xlabel("Standard Deviation", color='white')
-        ax.set_ylabel("Expected Return", color='white')
-        ax.tick_params(colors='white')
-        legend = ax.legend(loc='lower right', facecolor='black', labelcolor='white')
-        legend.get_frame().set_visible(False)  
+            # ラベル・軸・凡例の見た目調整
+            ax.set_xlabel("Standard Deviation", color='white')
+            ax.set_ylabel("Expected Return", color='white')
+            ax.tick_params(colors='white')
+            legend = ax.legend(loc='lower right', facecolor='black', labelcolor='white')
+            legend.get_frame().set_visible(False)
 
-        st.pyplot(fig)
+            st.pyplot(fig)
 
     with st.expander("各期待利益率における標準偏差と投資割合を表示"):
         weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
