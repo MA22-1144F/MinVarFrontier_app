@@ -6,3 +6,4 @@ matplotlib
 scipy
 openpyxl
 xlrd
+jpholiday
