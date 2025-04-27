@@ -662,30 +662,41 @@ if show_calc_button:
                     close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
                     st.dataframe(close_data_display.round(2), use_container_width=True)
 
+            # 共分散行列に微小な正規化を加える(数値誤差防止)
             cov_matrix += np.eye(len(cov_matrix)) * 1e-10
+            # 銘柄数
             N = len(mean_returns)
-            sum_r = np.sum(mean_returns)
-            max_r = np.max(mean_returns)
-            min_r = np.min(mean_returns)
+            # リターン(期待利益率)に関する統計量を取得
+            sum_r = np.sum(mean_returns)  # リターンの合計
+            max_r = np.max(mean_returns)  # 最大リターン
+            min_r = np.min(mean_returns)  # 最小リターン
+            # 最大リターンポートフォリオの期待利益率の計算
             max_weight = 1 - min_weight * (N - 1)
             max_return = max_r * max_weight + (sum_r - max_r) * min_weight
+            # 最小リターンポートフォリオの期待利益率の計算
             min_return = min_r * max_weight + (sum_r - min_r) * min_weight
+            # 数値誤差防止のための微小値を設定
             epsilon = 1e-6
-            # 指定された段階数に応じてリターン目標値を等間隔に設定
+            # 指定された段階数に応じてターゲットリターンを等間隔に設定
             target_returns = np.linspace(min_return + epsilon, max_return - epsilon, int(num_steps))
-
+            # ポートフォリオのリスク(標準偏差)を計算する関数を定義
             def calculate_portfolio_volatility(weights, cov_matrix):
                 return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-
+            # 各ターゲットリターンに対する最小リスク点を求めるリスト
             frontier_vol = []
             frontier_weights = []
+            # 最小分散フロンティアの各点を最適化で求める
             for target in target_returns:
+                # 最適化条件
                 constraints = (
-                    {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-                    {'type': 'eq', 'fun': lambda w: np.dot(w, mean_returns) - target}
+                    {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},  # ウェイトの合計は1
+                    {'type': 'eq', 'fun': lambda w: np.dot(w, mean_returns) - target}  # 指定ターゲットリターンを達成
                 )
+                # 各銘柄のウェイトの上下限(最小投資割合以上)
                 bounds = tuple((min_weight, 1.0) for _ in range(N))
+                # 初期値は均等配分
                 init_guess = np.array([1/N] * N)
+                # 最適化実行(リスク最小化問題)
                 result = minimize(
                     calculate_portfolio_volatility,
                     init_guess,
@@ -695,15 +706,15 @@ if show_calc_button:
                     constraints=constraints,
                     options={'maxiter': 500, 'ftol': 1e-9}
                 )
+                # 成功した場合のみ結果を格納
                 if result.success:
-                    frontier_vol.append(result.fun)
-                    frontier_weights.append(result.x)
-
+                    frontier_vol.append(result.fun)  # 最小リスク
+                    frontier_weights.append(result.x)  # 最適なウェイト配分
+            # 最適化結果が1点燃えられなかった場合はエラー終了
             if len(frontier_vol) == 0:
                 st.error("最小分散フロンティアの計算に失敗しました。銘柄数・期間・最小投資割合を見直してください。")
-                st.session_state.calculating = False
                 st.stop()
-
+            # 計算結果をセッションに保存
             st.session_state.result_data = {
                 "tickers": tickers,
                 "mean_returns": mean_returns,
