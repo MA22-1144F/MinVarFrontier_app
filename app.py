@@ -400,32 +400,28 @@ if use_csv:
     # span及びintervalを初期化
     span = None
     interval = None
-    # ボタン位置の整理
-    col_csv, col_button = st.columns([5, 2])
-    with col_csv:
-        # CSVファイルのアップロード
-        uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
-        # サンプルCSVの作成
-        # 本日を含めた直近10営業日(平日(祝日は考慮しない))の日付のリストを作成
-        sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
-        # ダミーの株価データを作成
-        template_data = pd.DataFrame({
-            date.strftime("%Y-%m-%d"): [  # 各日付を"YYYY-MM-DD"形式にして列に
-                np.random.randint(2500, 2750),  # 7203用(例:トヨタ自動車)
-                np.random.randint(3250, 3750),  # 6758用(例:ソニーグループ)
-                np.random.randint(140, 150)  # 9432用(例:日本電信電話)
-            ] for date in sample_dates  # 各営業日毎に値を生成
-        }, index=["7203", "6758", "9432"])  # 証券コードを行に
-        # 1行目のインデックス名を空にする
-        template_data.index.name = ""
-        # CSV化(文字列としてメモリ上に保存)
-        csv_buffer = io.StringIO()
-        template_data.to_csv(csv_buffer)
-        # CSV文字列を取り出す
-        csv_data = csv_buffer.getvalue()
-    with col_button:
-        # サンプルCSVのダウンロード
-        st.download_button("サンプルCSVをDL", data=csv_data, file_name="sample.csv", mime="text/csv")
+    # CSVファイルのアップロード
+    uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
+    # サンプルCSVの作成
+    # 本日を含めた直近10営業日(平日(祝日は考慮しない))の日付のリストを作成
+    sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
+    # ダミーの株価データを作成
+    template_data = pd.DataFrame({
+        date.strftime("%Y-%m-%d"): [  # 各日付を"YYYY-MM-DD"形式にして列に
+            np.random.randint(2500, 2750),  # 7203用(例:トヨタ自動車)
+            np.random.randint(3250, 3750),  # 6758用(例:ソニーグループ)
+            np.random.randint(140, 150)  # 9432用(例:日本電信電話)
+         ] for date in sample_dates  # 各営業日毎に値を生成
+     }, index=["7203", "6758", "9432"])  # 証券コードを行に
+    # 1行目のインデックス名を空にする
+    template_data.index.name = ""
+      # CSV化(文字列としてメモリ上に保存)
+    csv_buffer = io.StringIO()
+    template_data.to_csv(csv_buffer)
+    # CSV文字列を取り出す
+    csv_data = csv_buffer.getvalue()
+    # サンプルCSVのダウンロード
+    st.download_button("サンプルCSVをDL", data=csv_data, file_name="sample.csv", mime="text/csv")
     # 実際のCSVファイル処理
     if uploaded_file:
         try:
