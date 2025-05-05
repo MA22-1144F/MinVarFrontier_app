@@ -558,6 +558,9 @@ if not use_csv:
         interval = interval_map[span]
         # 株価データ取得
         codes = [s["code"] for s in st.session_state.selected_stocks]
+        if len(codes) < 2:
+            st.info("2銘柄以上をリストに追加する必要があります。")
+            st.stop()
         try:
             close_df = fetch_close_prices(codes, start_date, end_date, interval)
         except ValueError as e:
