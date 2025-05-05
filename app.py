@@ -19,6 +19,8 @@ from scipy.optimize import minimize
 from datetime import datetime, date, timedelta
 # プロット用ライブラリ
 import matplotlib.pyplot as plt
+# グラフ描画用ライブラリ
+import plotly.graph_objs as go
 # CSVテンプレート生成などに使用
 import io
 # 日本の祝日判定ライブラリ(jpholiday)
@@ -27,7 +29,7 @@ import jpholiday
 
 # ====初期化====
 
-close_data = None  # 株価終値のDaraFrame
+_data = None  # 株価終値のDaraFrame
 rf_rate_span = None  # 無リスク利子率(スパン単位換算値)
 
 # ====ページ設定とカスタムスタイル====
@@ -103,16 +105,57 @@ def load_japan_stock_list():
         # コードを文字列に変換して空白除去
         df['コード'] = df['コード'].astype(str).str.strip()
         return df
-    
     except Exception as e:
         # エラー発生時は画面に警告表示し、Noneを返す
-        st.error(f"銘柄リストの取得に失敗しました。ネット接続またはJPXのページをご確認ください。 {e}")
+        st.error(f"日本株リストの取得に失敗しました。 {e}")
         return None
-
 # 上で定義した関数を実行し、結果を変数に保持
-stock_df = load_japan_stock_list()
-if stock_df is None:
+jp_stock_df = load_japan_stock_list()
+if jp_stock_df is None:
     st.stop()  # 銘柄リストが取得できなかった場合は処理を中断
+
+
+# ====米国株の銘柄リストを取得する関数====
+
+@st.cache_data
+def load_us_stock_list():
+    """
+    米国上場株一覧CSVを読み込む。
+    ティッカーと銘柄名の列が必要。
+    """
+    try:
+        df = pd.read_csv("us_stocks.csv")  # 同じフォルダに配置
+        df = df[['Ticker symbol', 'Security']].dropna()
+        df.columns = ['ティッカー', '銘柄名']
+        df['ティッカー'] = df['ティッカー'].str.strip().str.upper()
+        return df
+    except Exception as e:
+        st.error(f"米国株リストの取得に失敗しました。{e}")
+        return pd.DataFrame(columns=['ティッカー', '銘柄名'])
+# 上で定義した関数を実行し、結果を変数に保持
+us_stock_df = load_us_stock_list()
+if us_stock_df is None:
+    st.stop()  # 銘柄リストが取得できなかった場合は処理を中断
+
+
+# ====日本株か米国株かを判定する関数====
+def determine_market(code, jp_stock_df, us_stock_df):
+    """
+    日本株・米国株リストに基づいて、正しいTickerを返す。
+    - 日本株：4桁コード + ".T"
+    - 米国株：そのまま
+    - どちらにも該当しない：Noneを返す
+    """
+    # 正規化（大文字・空白除去）
+    code_clean = str(code).strip().upper()
+    # 日本株か照合
+    if code_clean in jp_stock_df['コード'].values:
+        return code_clean + ".T"
+    # 米国株か照合
+    if code_clean in us_stock_df['ティッカー'].values:
+        return code_clean
+    # どちらにも該当しない
+    return None
 
 
 # ====ユーザー入力の正規化関数====
@@ -123,23 +166,6 @@ def normalize_input(text):
     例: '７２０３' → '7203'
     """
     return unicodedata.normalize('NFKC', text)
-
-
-# ====証券コードから銘柄名を取得====
-
-def get_japanese_name(code):
-    """
-    証券コードから対応する銘柄名を検索して返す。
-    一致しない場合はNoneを返す。
-    """
-    try:
-        match = stock_df[stock_df['コード'].astype(str).str.upper() == str(code).upper()]
-        if not match.empty:
-            return match['銘柄名'].values[0]
-        return None
-    except Exception as e:
-        st.error(f"銘柄名の取得中にエラーが発生しました：{e}")
-        return None
 
 
 # ====タイトル表示(カスタムCSSで装飾)====
@@ -177,7 +203,7 @@ st.markdown("""
 previous_input_mode = st.session_state.get("previous_input_mode", None)
 # ユーザに入力方式を選ばせるラジオボタン
 input_mode = st.radio(
-    "データ入力方法を選択してください。", 
+    "データ入力方法を選択", 
     ["証券コード・銘柄名による入力", "CSVによる入力"], 
     horizontal=False
 )
@@ -185,7 +211,7 @@ input_mode = st.radio(
 if "previous_input_mode" not in st.session_state:
     st.session_state.previous_input_mode = input_mode
 if st.session_state.previous_input_mode != input_mode:
-    st.session_state.close_df = None
+    st.session_state._df = None
     st.session_state.df_csv = None
     st.session_state.log_returns = None
     st.session_state.result_data = None
@@ -195,6 +221,7 @@ if st.session_state.previous_input_mode != input_mode:
 st.session_state.previous_input_mode = input_mode
 # CSV入力モードを真偽値で保持(以降の分岐処理に使用)
 use_csv = input_mode == "CSVによる入力"
+st.session_state.use_csv = use_csv
 
 # 区切り線を表示
 st.markdown("---")
@@ -221,12 +248,30 @@ def get_previous_business_day(offset=1):
 
 def fetch_tona_rate_report():
     """
-    日本銀行のコール市場関連統計ページから、TONA(無担保コールＯ／Ｎ物レート)の平均値を取得。
-    成功すれば、(金利のfloat、対象日付、URL)を返す。失敗時は(None、None、URL)を返す。
+    日本銀行のTONA(無担保コールＯ／Ｎ物レート)確報を、営業日・時刻に応じて適切に取得する。
+    土日祝日や午前10時前の公表前には前々営業日のものを用いる。
+    成功すれば、(金利のfloat、対象日付、URL)を返す。
+    失敗時は(None、None、URL)を返す。
     """
     now = datetime.now()
-    # 10時より前なら2営業日前、以降なら1営業日前を使う(通常午前10時頃公開)
-    target_date = get_previous_business_day(offset=2 if now.hour < 10 else 1)
+    today = now.date()
+    # 現在が土日祝 or 午前10時前か？
+    is_holiday_or_weekend = today.weekday() >= 5 or jpholiday.is_holiday(today)
+    is_before_10am = now.hour < 10
+    # 前営業日と前々営業日を取得
+    def get_nth_previous_business_day(n):
+        count = 0
+        day = today
+        while count < n:
+            day -= timedelta(days=1)
+            if day.weekday() < 5 and not jpholiday.is_holiday(day):
+                count += 1
+        return day
+    if is_holiday_or_weekend or is_before_10am:
+        target_date = get_nth_previous_business_day(2)
+    else:
+        target_date = get_nth_previous_business_day(1)
+    # URL生成
     url_date = target_date.strftime("%y%m%d")
     url = f"https://www3.boj.or.jp/market/jp/stat/md{url_date}.htm"
     try:
@@ -259,29 +304,68 @@ def fetch_tona_rate_report():
 
 def fetch_close_prices(codes, start_date, end_date, interval):
     """
-    与えられた証券コードリストに対して、指定期間・頻度の株価終値を一括取得する。
+    与えられた証券コードリストに対して、指定期間・頻度の調整後終値を一括取得する。
+    個別銘柄毎に検査・補正を行ってから統合する。
     """
-    import yfinance as yf
-    tickers = [code + ".T" for code in codes]
-    df = yf.download(
-        tickers=" ".join(tickers),
-        start=start_date,
-        end=end_date,
-        interval=interval,
-        group_by='ticker',
-        auto_adjust=True,
-        progress=False
-    )
-    price_data = {}
+    code_to_ticker = {}
+    tickers = []
+    # コードごとにtickerを解決
     for code in codes:
-        ticker = code + ".T"
+        resolved = determine_market(code, jp_stock_df, us_stock_df)  # .T付与など
+        if resolved is None:
+            st.warning(f"{code} は日本株・米国株いずれにも該当しません。スキップします。")
+            continue
+        code_to_ticker[code] = resolved
+        tickers.append(resolved)
+    if not tickers:
+        raise ValueError("有効なティッカーが1つもありません。")
+    # 一括ダウンロード（複数ティッカー）
+    try:
+        df = yf.download(
+            tickers=" ".join(tickers),
+            start=start_date,
+            end=end_date,
+            interval=interval,
+            group_by='ticker',
+            auto_adjust=False,
+            progress=False
+        )
+    except Exception as e:
+        raise RuntimeError(f"株価データの一括取得に失敗しました: {e}")
+    # 各コードに対する処理
+    price_data = {}
+    for code, ticker in code_to_ticker.items():
         try:
-            close = df[ticker]["Close"]
-            price_data[code] = close
-        except (KeyError, TypeError):
-            price_data[code] = None
-    return price_data
+            if len(tickers) == 1:
+                # 単一ティッカーのときは階層なし
+                adj_close = df["Adj Close"]
+            else:
+                adj_close = df[ticker]["Adj Close"]
+            # タイムゾーン補正（米国株はUTC、東証はJST）
+            if adj_close.index.tz is not None:
+                adj_close.index = adj_close.index.tz_convert("Asia/Tokyo")
+                adj_close.index = adj_close.index.tz_localize(None)
 
+            adj_close = adj_close.dropna().sort_index()
+            if not isinstance(adj_close, pd.Series) or adj_close.empty or adj_close.dropna().shape[0] < 2:
+                price_data[code] = None
+            else:
+                price_data[code] = adj_close
+        except (KeyError, TypeError, AttributeError) as e:
+            print(f"Error processing {ticker}: {e}")
+            price_data[code] = None
+    # 有効なデータのみ抽出
+    valid_data = {
+        code: series for code, series in price_data.items()
+        if isinstance(series, pd.Series) and not series.empty and series.dropna().shape[0] >= 2
+    }
+    if not valid_data:
+        raise ValueError("有効な株価データが一つも取得できませんでした。")
+    df_merged = pd.DataFrame(valid_data).sort_index()
+    common_dates = df_merged.dropna().index
+    df_merged = df_merged.loc[common_dates]
+    return df_merged
+    
 
 # ====株価終値からログリターンを計算する関数====
 
@@ -353,7 +437,10 @@ if use_csv:
                 raise ValueError("日付列の形式が不正です。")
             df_csv.columns = parsed_dates  # 日付型に変換
             # 必ず日付順にソート（念のため）
-            df_csv = df_csv.sort_index()
+            df_csv = df_csv.sort_index(axis=1)
+            # start_dateとend_dateの推定
+            st.session_state.start_date = df_csv.columns.min().to_pydatetime().date()
+            st.session_state.end_date = df_csv.columns.max().to_pydatetime().date()
             # スパン(日/週/月)の推定(平均間隔による)
             dates = df_csv.columns
             try:
@@ -361,10 +448,14 @@ if use_csv:
                 avg_delta = np.mean(deltas)
                 if avg_delta <= 2:
                     span = "日間"
+                    interval = "1d"
                 elif avg_delta <= 10:
                     span = "週間"
+                    interval = "1wk"
                 else:
                     span = "月間"
+                    interval = "1mo"
+                st.session_state.interval = interval
                 st.info(f"スパンは自動判定されました：**{span}**（平均間隔 {avg_delta:.1f} 日）")
             except Exception as e:
                 st.error(f"スパンの推定中にエラーが発生しました：{e}")
@@ -375,8 +466,11 @@ if use_csv:
                 df_csv_display.columns = [col.strftime('%Y/%m/%d') for col in df_csv_display.columns]
             except Exception as e:
                 st.error(f"列名の日付表示の整形に失敗しました（{e}）。")
+                st.stop()
             with st.expander("CSVのプレビューを表示"):
                 st.dataframe(df_csv_display)
+            num_csv_tickers = df_csv_display.shape[0]
+            st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_csv_tickers}</strong> 銘柄</p>", unsafe_allow_html=True)
             # 株価データをセッションに保存
             st.session_state.df_csv = df_csv  # 読み込んだ株価（行：銘柄、列：日付）
         except Exception as e:
@@ -393,30 +487,52 @@ if not use_csv:
     input_value = normalize_input(st.text_input("検索キーワードを入力してください。"))
     if input_value:
         if search_type == "証券コードで検索":
-            matches = stock_df[stock_df['コード'].str.contains(input_value, case=False, na=False)]
+            jp_matches = jp_stock_df[jp_stock_df['コード'].str.contains(input_value, case=False, na=False)]
+            us_matches = us_stock_df[us_stock_df['ティッカー'].str.contains(input_value, case=False, na=False)]
         else:
-            matches = stock_df[stock_df['銘柄名'].str.contains(input_value, case=False, na=False)]
+            jp_matches = jp_stock_df[jp_stock_df['銘柄名'].str.contains(input_value, case=False, na=False)]
+            us_matches = us_stock_df[us_stock_df['銘柄名'].str.contains(input_value, case=False, na=False)]
+        matches = pd.DataFrame(columns=["コード", "銘柄名", "市場"])
+        if not jp_matches.empty:
+            jp_matches = jp_matches.copy()
+            jp_matches["市場"] = "日本"
+            jp_matches.rename(columns={"コード": "コード"}, inplace=True)
+            matches = pd.concat([matches, jp_matches[["コード", "銘柄名", "市場"]]])
+        if not us_matches.empty:
+            us_matches = us_matches.copy()
+            us_matches["市場"] = "米国"
+            us_matches.rename(columns={"ティッカー": "コード"}, inplace=True)
+            matches = pd.concat([matches, us_matches[["コード", "銘柄名", "市場"]]])
         if matches.empty:
             st.warning("該当する銘柄が見つかりませんでした。")
         else:
-            match_label = matches['コード'] + " " + matches['銘柄名']
+            match_label = matches['コード'] + " " + matches['銘柄名'] + " (" + matches['市場'] + ")"
             selected_label = st.radio("追加したい銘柄を選択", options=match_label.tolist(), key="radio_candidates")
-            # コードと銘柄名に分割
-            selected_code, selected_name = selected_label.split(" ", 1)
+            # ラベルを分解
+            selected_code = selected_label.split(" ")[0]
+            selected_name = " ".join(selected_label.split(" ")[1:-1])
+            selected_market = selected_label.split("(")[-1].replace(")", "")
             # まだ追加されていない場合のみ追加ボタンを表示
             if selected_code not in [s['code'] for s in st.session_state.selected_stocks]:
                 if st.button(f"{selected_code}（{selected_name}）を追加"):
-                    st.session_state.selected_stocks.append({"code": selected_code, "name": selected_name})
+                    st.session_state.selected_stocks.append({
+                        "code": selected_code,
+                        "name": selected_name,
+                        "market": selected_market
+                    })
             else:
                 st.info(f"{selected_code}（{selected_name}）はすでに選択されています。")
 
     # 選択済みの銘柄の表示・削除・リセット
     if st.session_state.selected_stocks:
         st.markdown("<p style='font-size: 20px; font-weight: normal;'>選択中の銘柄リスト</p>", unsafe_allow_html=True)
+        num_selected = len(st.session_state.selected_stocks)
+        st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_selected}</strong> 銘柄</p>", unsafe_allow_html=True)
         for i, stock in enumerate(st.session_state.selected_stocks):
             cols = st.columns([2, 4, 1])
             cols[0].write(stock["code"])  # 証券コードを表示
             cols[1].write(stock["name"])  # 銘柄名を表示
+            cols[2].write(stock.get("market", "不明"))  # 市場を表示
             if cols[2].button("削除", key=f"del_{i}"):  # 削除ボタンを表示
                 st.session_state.selected_stocks.pop(i)
                 st.rerun()
@@ -440,13 +556,13 @@ if not use_csv:
         span = st.radio("スパン（日間・週間・月間）", ["日間", "週間", "月間"])
         interval_map = {"日間": "1d", "週間": "1wk", "月間": "1mo"}
         interval = interval_map[span]
-        # 株価一括取得
+        # 株価データ取得
         codes = [s["code"] for s in st.session_state.selected_stocks]
-        price_data = fetch_close_prices(codes, start_date, end_date, interval)
-        # 共通日付でDataFrame整形
-        close_df = pd.DataFrame({
-            code: data for code, data in price_data.items() if data is not None
-        }).dropna(axis=1)
+        try:
+            close_df = fetch_close_prices(codes, start_date, end_date, interval)
+        except ValueError as e:
+            st.error(f"株価データ取得エラー：{e}")
+            st.stop()
         if close_df.empty:
             st.error("株価データの取得に失敗しました。")
             st.stop()
@@ -454,11 +570,15 @@ if not use_csv:
         close_df = close_df.sort_index()
         # 株価DataFrameをセッションに保存
         st.session_state.close_df = close_df
+        # 日付情報をセッションに保存
+        st.session_state.start_date = start_date
+        st.session_state.end_date = end_date
+        st.session_state.interval = interval
 
 
 # ====最小投資割合と期待利益率の段階数の入力====
 
-min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.01, step=0.001, format="%.3f")
+min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.00, step=0.001, format="%.3f")
 num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=500, value=50, step=1)
 
 
@@ -499,6 +619,34 @@ if span:
     rf_rate_span = convert_rf_rate_safe(rf_rate, span)
 
 
+# ====比較市場ポートフォリオの選択====
+
+# 市場ポートフォリオ選択
+market_choice = st.radio(
+    "市場ポートフォリオを選択", 
+    (
+        "Nikkei 225 (^N225)", 
+        "NASDAQ Composite (^IXIC)",
+        "S&P 500 (^GSPC)",
+        "Dow Jones Industrial Average (^DJI)"
+    )
+)
+# 選択肢からティッカーコードを割り出す
+if "Nikkei 225 (^N225)" in market_choice:
+    market_ticker = "^N225"
+elif "NASDAQ Composite (^IXIC)" in market_choice:
+    market_ticker = "^IXIC"
+elif "S&P 500 (^GSPC)" in market_choice:
+    market_ticker = "^GSPC"
+elif "Dow Jones Industrial Average (^DJI)" in market_choice:
+    market_ticker = "^DJI"
+else:
+    st.error("無効な市場ポートフォリオが選択されました。")
+    st.stop()
+# 選択結果をSessionStateに保存
+st.session_state.market_ticker = market_ticker
+
+
 # ====計算ボタンと実行====
 
 # 計算ボタンを表示する条件
@@ -515,11 +663,14 @@ if show_calc_button:
     if run_calc:
         st.session_state.calculating = True
         with st.spinner("計算中です。"):
+            use_csv = st.session_state.get("use_csv", False)
             if use_csv:  # CSV入力モード
                 df = st.session_state.get("df_csv", None)
                 if df is None:
                     st.error("CSVファイルのデータが見つかりません。")
                     st.stop()
+                # close_dfを定義（行＝日付、列＝銘柄）
+                close_df = df.T
                 try:
                     log_returns = calculate_log_returns(df, axis=1)  # df_csvからログリターン計算(axis=1で行方向に時系列計算)
                 except Exception as e:
@@ -529,12 +680,12 @@ if show_calc_button:
                 tickers = log_returns.index.tolist()
                 log_returns = log_returns.T  # 計算後、log_returnsを転置して「行＝日付、列＝銘柄」に揃える
             else:  # 証券コード・銘柄名入力モード
-                df = st.session_state.get("close_df", None)
-                if df is None:
+                close_df = st.session_state.get("close_df", None)
+                if close_df is None:
                     st.error("株価データが見つかりません。")
                     st.stop()
                 try:
-                    log_returns = calculate_log_returns(df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
+                    log_returns = calculate_log_returns(close_df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
                 except Exception as e:
                     st.error(f"ログリターンの計算に失敗しました：{e}")
                     st.stop()
@@ -560,6 +711,16 @@ if show_calc_button:
                     )
                 # 証券コードリスト
                 tickers = log_returns.columns.tolist()
+                # 株価時系列の表示
+                if close_df is not None and not close_df.empty:
+                    with st.expander("株価の時系列（終値）を表示"):
+                        close_df_display = close_df.copy()
+                        close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
+                        st.dataframe(close_df_display.round(2), use_container_width=True)
+                else:
+                    st.error("株価データが存在しません。")
+                    st.stop()
+            st.session_state.close_df = close_df
             # log_returnsをセッションに保存
             st.session_state.log_returns = log_returns
             # 平均・標準偏差・共分散を計算（列＝銘柄方向）
@@ -576,12 +737,6 @@ if show_calc_button:
                 st.error("最小投資割合は0以上0.5未満である必要があります。")
                 st.session_state.calculating = False
                 st.stop()
-            # 株価時系列の表示
-            if close_data is not None and not close_data.empty:
-                with st.expander("株価の時系列（終値）を表示"):
-                    close_data_display = close_data.T  # 銘柄を行、日付を列にする
-                    close_data_display.columns = close_data_display.columns.strftime('%Y/%m/%d')  # 日付フォーマット変更
-                    st.dataframe(close_data_display.round(2), use_container_width=True)
             # 共分散行列に微小な正規化を加える(数値誤差防止)
             cov_matrix += np.eye(len(cov_matrix)) * 1e-10
             # 銘柄数
@@ -630,10 +785,44 @@ if show_calc_button:
                 if result.success:
                     frontier_vol.append(result.fun)  # 最小リスク
                     frontier_weights.append(result.x)  # 最適なウェイト配分
-            # 最適化結果が1点燃えられなかった場合はエラー終了
+            # 最適化結果が1点も得られなかった場合はエラー終了
             if len(frontier_vol) == 0:
                 st.error("最小分散フロンティアの計算に失敗しました。銘柄数・期間・最小投資割合を見直してください。")
                 st.stop()
+            # start_date,end_date,intervalの情報を取得
+            start_date = st.session_state.get("start_date", None)
+            end_date = st.session_state.get("end_date", None)
+            interval = st.session_state.get("interval", None)
+            if None in (start_date, end_date, interval):
+                st.error("日付が正しく設定されていません。")
+                st.stop()
+            # yfinanceで市場ポートフォリオデータ取得
+            market_ticker = st.session_state.get("market_ticker", None)
+            try:
+                market_data = yf.download(market_ticker, start=start_date, end=end_date, interval=interval)
+                # ダウンロードの失敗チェック
+                if market_data is None or market_data.empty:
+                    st.error(f"市場ポートフォリオ {market_ticker} のデータ取得に失敗しました。")
+                    st.stop()
+                # 市場リターンを計算
+                market_returns = np.log(market_data["Close"] / market_data["Close"].shift(1)).dropna()
+            except Exception as e:
+                st.error(f"市場データ取得中にエラーが発生しました：{e}")
+                st.stop()
+            # β値の計算
+            betas = {}
+            market_returns_array = market_returns.squeeze()
+            market_var = np.var(market_returns_array, ddof=0)
+            for code in tickers:
+                combined_df = pd.concat([log_returns[code], market_returns_array], axis=1, join='inner').dropna()
+                if combined_df.shape[0] < 2:
+                    beta = np.nan
+                else:
+                    cov = np.cov(combined_df.iloc[:, 0], combined_df.iloc[:, 1])[0, 1]
+                    beta = cov / market_var if isinstance(market_var, (int, float)) and market_var != 0 else np.nan
+                betas[code] = beta
+
+
             # 計算結果をセッションに保存
             st.session_state.result_data = {
                 "tickers": tickers,
@@ -642,7 +831,10 @@ if show_calc_button:
                 "cov_matrix": cov_matrix,
                 "target_returns": target_returns,
                 "frontier_vol": frontier_vol,
-                "frontier_weights": frontier_weights
+                "frontier_weights": frontier_weights,
+                "betas": betas,
+                "market_return_mean": np.mean(market_returns),
+                "risk_free_rate_span": rf_rate_span
             }
         st.session_state.calculating = False
 
@@ -694,50 +886,86 @@ if st.session_state.result_data:
         else:
             st.warning("相関行列を表示するには、まず計算を実行してください。")
             st.stop()
-    with st.expander("最小分散フロンティアを表示"):
+
+    # 最小分散フロンティアと資本市場線の表示
+    with st.expander("最小分散フロンティア(MVF)と資本市場線(CML)を表示"):
         if data["frontier_vol"] is None or len(data["frontier_vol"]) == 0:
             st.error("最小分散フロンティアが正常に計算できませんでした。")
         else:
             # 最小分散点のインデックス
             min_index = np.nanargmin(data["frontier_vol"])
-            # 効率的フロンティア
             efficient_vol = data["frontier_vol"][min_index:]
             efficient_returns = data["target_returns"][min_index:]
-            # シャープレシオ最大点（CML接点）
+            # シャープレシオ最大点
             sharpe_ratios = (np.array(data["target_returns"]) - rf_rate_span) / np.array(data["frontier_vol"])
             max_sharpe_idx = np.nanargmax(sharpe_ratios)
             max_std = data["frontier_vol"][max_sharpe_idx]
             max_return = data["target_returns"][max_sharpe_idx]
-            # 資本市場線（CML）
-            cml_x = np.linspace(0, max_std * 1, 100)
+            # CML描画用データ
+            cml_x = np.linspace(0, max_std * 2, 100)
             cml_y = rf_rate_span + ((max_return - rf_rate_span) / max_std) * cml_x
-            # グラフ描画
-            fig, ax = plt.subplots(facecolor='black')
-            ax.set_facecolor('black')
-            # 最小分散フロンティア
-            ax.plot(data["frontier_vol"], data["target_returns"], linestyle='-', color='gray', label='Minimum Variance Frontier', zorder=1)
-            # 効率的フロンティア
-            ax.plot(efficient_vol, efficient_returns, linestyle='-', color='cyan', linewidth=2, label='Efficient Frontier', zorder=2)
-            # 最小リスクポートフォリオ
-            x = data["frontier_vol"][min_index]
-            y = data["target_returns"][min_index]
-            ax.scatter(x, y, color='red', label='Minimum Risk Portfolio', zorder=5)
-            # CML描画
-            ax.plot(cml_x, cml_y, linestyle='--', color='gold', linewidth=1.8, label='Capital Market Line', zorder=0)
-            # Y軸に無リスク利子率を含むように調整
-            ymin = min(rf_rate_span * 0.9, min(data["target_returns"]) * 0.9)
-            ymax = max(data["target_returns"]) * 1.1
-            ax.set_ylim(ymin, ymax)
-            # 無リスク利子率の線を描画
-            ax.axhline(rf_rate_span, linestyle=':', color='orange', linewidth=1, label=f"Risk-Free Rate ({rf_rate_span:.4f})")
-            # ラベル・軸・凡例の見た目調整
-            ax.set_xlabel("Standard Deviation", color='white')
-            ax.set_ylabel("Expected Return", color='white')
-            ax.tick_params(colors='white')
-            legend = ax.legend(loc='lower right', facecolor='black', labelcolor='white')
-            legend.get_frame().set_visible(False)
-            st.pyplot(fig)
+            # Plotlyグラフ作成
+            fig = go.Figure()
+            # MVF（全体）
+            fig.add_trace(go.Scatter(
+                x=data["frontier_vol"],
+                y=data["target_returns"],
+                mode="lines",
+                name="MVF",
+                line=dict(color="gray", width=1), 
+                zorder=3
+            ))
+            # 効率的フロンティア(EF)（MVFの右側）
+            fig.add_trace(go.Scatter(
+                x=efficient_vol,
+                y=efficient_returns,
+                mode="lines",
+                name="EF",
+                line=dict(color="cyan", width=2), 
+                zorder=4
+            ))
+            # 最小分散ポートフォリオ
+            fig.add_trace(go.Scatter(
+                x=[data["frontier_vol"][min_index]],
+                y=[data["target_returns"][min_index]],
+                mode="markers",
+                name="MVP",
+                marker=dict(size=5, color="red", symbol="circle"), 
+                zorder=5
+            ))
+            # CML
+            fig.add_trace(go.Scatter(
+                x=cml_x,
+                y=cml_y,
+                mode="lines",
+                name="CML",
+                line=dict(color="gold", width=2), 
+                zorder=2
+            ))
+            # 無リスク利子率線
+            fig.add_trace(go.Scatter(
+                x=[0, max(data["frontier_vol"]) * 1.05],
+                y=[rf_rate_span, rf_rate_span],
+                mode="lines",
+                name=f"RFR ({rf_rate_span:.3%})",
+                line=dict(color="pink", dash="dot", width=1), 
+                zorder=1
+            ))
+            # レイアウト設定
+            fig.update_layout(
+                xaxis=dict(title="標準偏差", showgrid=False),
+                yaxis=dict(title="期待利益率", range=[min(rf_rate_span * 0.9, min(data["target_returns"]) * 0.9),
+                                                            max(data["target_returns"]) * 1.1], showgrid=False),
+                plot_bgcolor="black",
+                paper_bgcolor="black",
+                font=dict(color="white", family='Meiryo'),
+                legend=dict(x=1.02, y=1, borderwidth=0),
+                margin=dict(r=150)
+            )
+            # 表示
+            st.plotly_chart(fig, use_container_width=True)
 
+    # 各期待利益率における標準偏差と投資割合を表示
     with st.expander("各期待利益率における標準偏差と投資割合を表示"):
         weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
         weight_df.insert(0, "標準偏差", data["frontier_vol"])
@@ -751,12 +979,71 @@ if st.session_state.result_data:
             file_name="frontier_weights.csv",
             mime="text/csv"
         )
+    
+    # 証券市場線(SML)を表示
+    with st.expander("証券市場線(SML)を表示"):
+        # データ
+        beta_vals = np.array(list(data["betas"].values()))
+        expected_returns = np.array([data["mean_returns"][data["tickers"].index(code)] for code in data["betas"].keys()])
+        rf = data["risk_free_rate_span"]
+        rm = data["market_return_mean"]
+        x_vals = np.linspace(0, max(2.5, beta_vals.max() * 1.2), 100)
+        sml_y = rf + (rm - rf) * x_vals
+        # SMLライン
+        sml_line = go.Scatter(
+            x=x_vals,
+            y=sml_y,
+            mode='lines',
+            name='SML',
+            line=dict(width=1, color='gold')
+        )
+        # 各銘柄の点
+        stock_points = go.Scatter(
+            x=beta_vals,
+            y=expected_returns,
+            mode='markers+text',
+            name='銘柄',
+            text=list(data["betas"].keys()),
+            textposition="top center",
+            textfont=dict(size=10, color='lightgray'),
+            marker=dict(size=5, color='lightblue')
+        )
+        # 無リスク利子率の横線
+        rf_line = go.Scatter(
+            x=[0, max(x_vals)],
+            y=[rf, rf],
+            mode='lines',
+            name=f'RFR ({rf:.3%})',
+            line=dict(color="pink", dash="dot", width=1)
+        )
+        # レイアウト
+        layout = go.Layout(
+            xaxis=dict(title='β', showgrid=False),
+            yaxis=dict(title='期待利益率', showgrid=False),
+            plot_bgcolor='black',
+            paper_bgcolor='black',
+            font=dict(color='white', family='Meiryo'),
+            legend=dict(x=1.05, y=1, borderwidth=0)
+        )
+        fig = go.Figure(data=[sml_line, stock_points, rf_line], layout=layout)
+        # 表示
+        st.plotly_chart(fig, use_container_width=True)
+
+    # 各銘柄のβ値を表示
+    with st.expander("各銘柄のβ値を表示"):
+        beta_df = pd.DataFrame({
+            "証券コード": list(data["betas"].keys()),
+            "β値": list(data["betas"].values())
+        })
+        st.dataframe(beta_df.style.format({"β値": "{:.5f}"}), hide_index=True)
+
 
 # コメント
 st.markdown("""
     <hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
     <div style='text-align: left; font-size: 0.8rem; color: gray;'>
-        本アプリは学習目的で作成されたものであり、投資判断への利用を想定したものではありません。<br> 利用によって生じたいかなる損害についても開発者は責任を負いかねます。
+        本アプリは学習目的で作成されたものであり、投資判断への利用を想定したものではありません。
+        <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます。
     </div>
 """, unsafe_allow_html=True)
 
