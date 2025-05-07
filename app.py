@@ -25,7 +25,8 @@ import plotly.graph_objs as go
 import io
 # 日本の祝日判定ライブラリ(jpholiday)
 import jpholiday
-
+# 時間操作のモジュール
+import time
 
 # ====初期化====
 
@@ -300,6 +301,52 @@ def fetch_tona_rate_report():
         return None, None, url
 
 
+# ====ドル円レートを取得する関数====
+
+@st.cache_data
+def fetch_usd_to_jpy_rates(start_date, end_date, interval):
+    """
+    指定期間・スパンでドル円為替レートを取得する（USD/JPY）。
+    """
+    fx = yf.download("JPY=X", start=start_date, end=end_date, interval=interval, auto_adjust=False, progress=False)
+    if fx is None or fx.empty or "Close" not in fx.columns:
+        raise ValueError("ドル円為替レートの取得に失敗しました。")
+    fx = fx["Close"]
+    if fx.index.tz is not None:
+        fx.index = fx.index.tz_convert("Asia/Tokyo").tz_localize(None)
+    return fx.sort_index()
+
+
+# ====株価終値の取得に係るリトライ機能の関数====
+
+def safe_download(tickers, start, end, interval, retries=3, delay=5):
+    """
+    yfinance.download() にリトライ機能を追加した安全なダウンロード関数。
+    """
+    for i in range(retries):
+        try:
+            df = yf.download(
+                tickers=tickers,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                group_by='ticker',
+                auto_adjust=False,
+                progress=False
+            )
+            if df is not None and not df.empty:
+                return df
+            else:
+                st.warning(f"{tickers} のデータが空です。{delay}秒待機します（{i+1}/{retries}）")
+        except Exception as e:
+            if "Rate limited" in str(e) or "Too Many Requests" in str(e):
+                st.warning(f"Rate limit に達しました（{tickers}）。{delay}秒待機します（{i+1}/{retries}）")
+            else:
+                st.warning(f"{tickers} の取得中にエラー：{e}。{delay}秒待機します（{i+1}/{retries}）")
+        time.sleep(delay)
+    raise RuntimeError(f"{tickers} のデータ取得に繰り返し失敗しました。")
+
+
 # ====株価終値を一括取得する関数====
 
 def fetch_close_prices(codes, start_date, end_date, interval):
@@ -321,15 +368,12 @@ def fetch_close_prices(codes, start_date, end_date, interval):
         raise ValueError("有効なティッカーが1つもありません。")
     # 一括ダウンロード（複数ティッカー）
     try:
-        df = yf.download(
-            tickers=" ".join(tickers),
-            start=start_date,
-            end=end_date,
-            interval=interval,
-            group_by='ticker',
-            auto_adjust=False,
-            progress=False
-        )
+        df = safe_download(
+                tickers=" ".join(tickers),
+                start=start_date,
+                end=end_date,
+                interval=interval
+            )
     except Exception as e:
         raise RuntimeError(f"株価データの一括取得に失敗しました: {e}")
     # 各コードに対する処理
@@ -364,6 +408,22 @@ def fetch_close_prices(codes, start_date, end_date, interval):
     df_merged = pd.DataFrame(valid_data).sort_index()
     common_dates = df_merged.dropna().index
     df_merged = df_merged.loc[common_dates]
+    # 為替換算オプションがオンなら、米国株のみドル円換算
+    if st.session_state.get("convert_usd_to_jpy", False):
+        try:
+            fx_rates = fetch_usd_to_jpy_rates(start_date, end_date, interval)
+            if isinstance(fx_rates, pd.DataFrame):
+                fx_rates = fx_rates.squeeze()
+            for code in df_merged.columns:
+                ticker = determine_market(code, jp_stock_df, us_stock_df)
+                if ticker and not ticker.endswith(".T"):  # 米国株のみ
+                    aligned_fx = fx_rates.reindex(df_merged.index).ffill().bfill()
+                    if len(aligned_fx) != len(df_merged.index):
+                        st.warning(f"{code} の為替レートの行数が一致しません為替：{len(aligned_fx)}, 株価：{len(df_merged.index)}")
+                        continue
+                    df_merged[code] = df_merged[code] * aligned_fx
+        except Exception as e:
+            st.warning(f"為替換算に失敗しました。：{e}")
     return df_merged
     
 
@@ -481,6 +541,7 @@ if not use_csv:
     rf_rate_span = None
     search_type = st.radio("検索方法を選んでください。", ["証券コードで検索", "銘柄名で検索"])
     input_value = normalize_input(st.text_input("検索キーワードを入力してください。"))
+    st.checkbox("米国株を円換算して分析する。", key="convert_usd_to_jpy")
     if input_value:
         if search_type == "証券コードで検索":
             jp_matches = jp_stock_df[jp_stock_df['コード'].str.contains(input_value, case=False, na=False)]
@@ -710,15 +771,6 @@ if show_calc_button:
                     )
                 # 証券コードリスト
                 tickers = log_returns.columns.tolist()
-                # 株価時系列の表示
-                if close_df is not None and not close_df.empty:
-                    with st.expander("株価の時系列（終値）を表示"):
-                        close_df_display = close_df.copy()
-                        close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
-                        st.dataframe(close_df_display.round(2), use_container_width=True)
-                else:
-                    st.error("株価データが存在しません。")
-                    st.stop()
             st.session_state.close_df = close_df
             # log_returnsをセッションに保存
             st.session_state.log_returns = log_returns
@@ -821,7 +873,6 @@ if show_calc_button:
                     beta = cov / market_var if isinstance(market_var, (int, float)) and market_var != 0 else np.nan
                 betas[code] = beta
 
-
             # 計算結果をセッションに保存
             st.session_state.result_data = {
                 "tickers": tickers,
@@ -836,12 +887,67 @@ if show_calc_button:
                 "risk_free_rate_span": rf_rate_span
             }
         st.session_state.calculating = False
-
+            
 
 # ====結果表示====
 
 if st.session_state.result_data:
     data = st.session_state.result_data
+    # 株価時系列の表示
+    if not use_csv:
+        if close_df is not None and not close_df.empty:
+            with st.expander("株価の時系列（終値）を表示"):
+                close_df_display = close_df.copy()
+                close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
+                st.dataframe(close_df_display.round(2), use_container_width=True)
+        else:
+            st.error("株価データが存在しません。")
+            st.stop()
+    # 為替レート（USD/JPY）の表示
+    if st.session_state.get("convert_usd_to_jpy", False):
+        try:
+            fx_rates = fetch_usd_to_jpy_rates(start_date, end_date, interval)
+            # 1列DataFrameの可能性があるのでSeries化
+            if isinstance(fx_rates, pd.DataFrame):
+                fx_rates = fx_rates["Close"] if "Close" in fx_rates.columns else fx_rates.squeeze()
+            # 株価で使った日付（共通日付）に限定して為替レートを抽出
+            common_dates = close_df.index
+            fx_trimmed = fx_rates.reindex(common_dates).bfill().ffill()
+            fx_df = fx_trimmed.rename("USD/JPY").to_frame()
+            # 為替CSVデータをセッションに一時保存（DL後も再描画維持）
+            st.session_state["fx_display_df"] = fx_df.to_csv(index=True).encode("utf-8")
+            # タイトル
+            with st.expander("為替レート（USD/JPY）の表示"):
+                # Plotlyグラフ表示（Y軸の下限調整あり）
+                fig_fx = go.Figure()
+                fig_fx.add_trace(go.Scatter(
+                    x=fx_trimmed.index,
+                    y=fx_trimmed.values,
+                    mode='lines+markers',
+                    name='USD/JPY',
+                    line=dict(color='lightblue'),
+                    marker=dict(size=4)
+                ))
+                fig_fx.update_layout(
+                    xaxis_title="日付",
+                    yaxis_title="為替レート（円）",
+                    yaxis=dict(range=[fx_trimmed.min() * 0.995, fx_trimmed.max() * 1.005]),
+                    plot_bgcolor='black',
+                    paper_bgcolor='black',
+                    font=dict(color='white', family='Meiryo'),
+                    margin=dict(l=50, r=50, t=30, b=50),
+                    height=400
+                )
+                st.plotly_chart(fig_fx, use_container_width=True)
+                # CSVダウンロードボタン
+                st.download_button(
+                    label="為替レートをCSVとしてダウンロード",
+                    data=st.session_state["fx_display_df"],
+                    file_name="usd_jpy_rates.csv",
+                    mime="text/csv",
+                )
+        except Exception as e:
+            st.warning(f"為替レートの表示に失敗しました：{e}")
     # 銘柄ごとのリスク(log_returns標準偏差)・リターン(log_returns平均)情報を表示
     with st.expander("各銘柄の標準偏差と期待利益率を表示"):
         df_mean = pd.DataFrame({
@@ -854,37 +960,44 @@ if st.session_state.result_data:
     with st.expander("銘柄間の相関行列（ヒートマップ）を表示"):
         # ログリターンをセッションから取得
         log_returns = st.session_state.get("log_returns", None)
-        # 取得できない場合は警告を出して終了
-        if data and log_returns is not None:
-            try:
+        try:
+            if "log_returns" in st.session_state:
+                log_returns = st.session_state["log_returns"]
+                tickers = log_returns.columns  # ← ここを再定義する
                 corr_matrix = log_returns.corr()
-                fig_corr, ax_corr = plt.subplots()
-                cax = ax_corr.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
-                ax_corr.set_xticks(np.arange(len(tickers)))
-                ax_corr.set_yticks(np.arange(len(tickers)))
-                ax_corr.set_xticklabels(tickers, color='white', rotation=45, ha='right')
-                ax_corr.set_yticklabels(tickers, color='white')
-                ax_corr.tick_params(colors='white')
-                cbar = fig_corr.colorbar(cax)
-                cbar.ax.yaxis.set_tick_params(color='white')
-                plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
-                fig_corr.patch.set_facecolor('black')
-                ax_corr.set_facecolor('black')
-                st.pyplot(fig_corr)
+                st.session_state["corr_matrix"] = corr_matrix
+            elif "corr_matrix" in st.session_state:
+                corr_matrix = st.session_state["corr_matrix"]
+                tickers = corr_matrix.columns
+            else:
+                st.warning("相関行列を表示するには先に株価データの取得が必要です。")
+                raise StopIteration
+        
+            corr_matrix = log_returns.corr()
+            fig_corr, ax_corr = plt.subplots()
+            cax = ax_corr.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
+            ax_corr.set_xticks(np.arange(len(tickers)))
+            ax_corr.set_yticks(np.arange(len(tickers)))
+            ax_corr.set_xticklabels(tickers, color='white', rotation=45, ha='right')
+            ax_corr.set_yticklabels(tickers, color='white')
+            ax_corr.tick_params(colors='white')
+            cbar = fig_corr.colorbar(cax)
+            cbar.ax.yaxis.set_tick_params(color='white')
+            plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
+            fig_corr.patch.set_facecolor('black')
+            ax_corr.set_facecolor('black')
+            st.pyplot(fig_corr)
 
-                # 相関係数のCSVダウンロードボタン
-                corr_csv = corr_matrix.round(5).to_csv(index=True, encoding="utf-8-sig")
-                st.download_button(
-                    label="相関係数をCSVとしてダウンロード",
-                    data=corr_csv,
-                    file_name="correlation_matrix.csv",
-                    mime="text/csv"
-                )
-            except Exception as e:
+            # 相関係数のCSVダウンロードボタン
+            st.session_state["corr_matrix_csv"] = corr_matrix.round(5).to_csv(index=True, encoding="utf-8-sig")
+            st.download_button(
+                label="相関係数をCSVとしてダウンロード",
+                data=st.session_state["corr_matrix_csv"],
+                file_name="correlation_matrix.csv",
+                mime="text/csv"
+            )
+        except Exception as e:
                 st.error(f"相関行列の表示中にエラーが発生しました。: {e}")
-        else:
-            st.warning("相関行列を表示するには、まず計算を実行してください。")
-            st.stop()
 
     # 最小分散フロンティアと資本市場線の表示
     with st.expander("最小分散フロンティア(MVF)と資本市場線(CML)を表示"):
@@ -963,22 +1076,19 @@ if st.session_state.result_data:
             )
             # 表示
             st.plotly_chart(fig, use_container_width=True)
-
-    # 各期待利益率における標準偏差と投資割合を表示
-    with st.expander("各期待利益率における標準偏差と投資割合を表示"):
-        weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
-        weight_df.insert(0, "標準偏差", data["frontier_vol"])
-        weight_df.insert(1, "期待利益率", data["target_returns"])
-        weight_df = weight_df.sort_values(by="期待利益率", ascending=False)
-        st.dataframe(weight_df.style.format("{:.5f}"), use_container_width=True, hide_index=True)
-        csv = weight_df.to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            label="CSVとしてダウンロード",
-            data=csv,
-            file_name="frontier_weights.csv",
-            mime="text/csv"
-        )
-    
+            # 各期待利益率における標準偏差と投資割合をCSVとしてダウンロード
+            weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
+            weight_df.insert(0, "標準偏差", data["frontier_vol"])
+            weight_df.insert(1, "期待利益率", data["target_returns"])
+            weight_df = weight_df.sort_values(by="期待利益率", ascending=False)
+            #st.dataframe(weight_df.style.format("{:.5f}"), use_container_width=True, hide_index=True)
+            st.session_state["frontier_weights_csv"] = weight_df.to_csv(index=False).encode("utf-8-sig")
+            st.download_button(
+                label="各期待利益率における標準偏差と投資割合をCSVとしてダウンロード",
+                data=st.session_state["frontier_weights_csv"],
+                file_name="frontier_weights.csv",
+                mime="text/csv"
+            )
     # 証券市場線(SML)を表示
     with st.expander("証券市場線(SML)を表示"):
         # データ
