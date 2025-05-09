@@ -1137,14 +1137,26 @@ if st.session_state.result_data:
         fig = go.Figure(data=[sml_line, stock_points, rf_line], layout=layout)
         # 表示
         st.plotly_chart(fig, use_container_width=True)
-
-    # 各銘柄のβ値を表示
-    with st.expander("各銘柄のβ値を表示"):
+        # 各銘柄のβ値をCSVとしてダウンロード
         beta_df = pd.DataFrame({
             "証券コード": list(data["betas"].keys()),
             "β値": list(data["betas"].values())
         })
-        st.dataframe(beta_df.style.format({"β値": "{:.5f}"}), hide_index=True)
+        st.session_state["beta_csv"] = beta_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label="各銘柄のβ値をCSVとしてダウンロード",
+            data=st.session_state["beta_csv"],
+            file_name="beta.csv",
+            mime="text/csv"
+        )
+
+    # 各銘柄のβ値を表示
+    #with st.expander("各銘柄のβ値を表示"):
+    #    beta_df = pd.DataFrame({
+    #        "証券コード": list(data["betas"].keys()),
+    #        "β値": list(data["betas"].values())
+    #    })
+    #    st.dataframe(beta_df.style.format({"β値": "{:.5f}"}), hide_index=True)
 
 
 # コメント
