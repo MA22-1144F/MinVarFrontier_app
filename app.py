@@ -125,7 +125,7 @@ def load_us_stock_list():
     ティッカーと銘柄名の列が必要。
     """
     try:
-        df = pd.read_csv("us_stocks.csv")  # 同じフォルダに配置
+        df = pd.read_csv("us_stocks.csv", encoding="utf-8")  # 同じフォルダに配置
         df = df[['Ticker symbol', 'Security']].dropna()
         df.columns = ['ティッカー', '銘柄名']
         df['ティッカー'] = df['ティッカー'].str.strip().str.upper()
