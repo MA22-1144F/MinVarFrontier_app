@@ -1103,7 +1103,7 @@ if st.session_state.result_data:
             x=x_vals,
             y=sml_y,
             mode='lines',
-            name=f'SML({st.session_state.market_ticker})',
+            name=f'SML ({st.session_state.market_ticker})',
             line=dict(width=1, color='gold')
         )
         # 各銘柄の点
