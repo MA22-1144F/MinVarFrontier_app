@@ -47,8 +47,8 @@ st.markdown("""
         background-color: #000000;  /* 背景を黒に */
         color: #ffffff;  /* 文字色を白に */
         font-family: Meiryo, sans-serif;  /* メイリオフォントを使用 */
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
         padding-top: 1.5rem !important;
         padding-bottom: 1.5rem !important;
         max-width: 100% !important;
