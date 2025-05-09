@@ -1,4 +1,4 @@
-Ticker symbol,Security
+ï»¿Ticker symbol,Security
 A,Agilent Technologies
 AA,Alcoa
 AAL,American Airlines Group
@@ -585,7 +585,7 @@ BMY,Bristol-Myers Squibb
 BN,Brookfield Corporation
 BNAI,Brand Engagement Network Inc
 BNED,Barnes & Noble Education Inc
-BNGO,Bio‚mano Genomics Inc
+BNGO,Bioï¼®ano Genomics Inc
 BNIX,Bannix Acquisition Corp
 BNS,Bank of Nova Scotia
 BNTC,Benitec Biopharma Inc
@@ -983,7 +983,7 @@ CREX,Creative Realities Inc
 CRGO,Freightos Limited
 CRGY,Crescent Energy Inc
 CRH,CRH PLC
-CRI,Carterfs Inc
+CRI,Carterâ€™s Inc
 CRIS,Curis Inc
 CRK,Comstock Resources Inc
 CRL,Charles River Laboratories International Inc
@@ -1122,7 +1122,7 @@ DCTH,Delcath Systems Inc
 DD,DuPont de Nemours
 DDD,3D Systems
 DDOG,Datadog Inc A
-DDS,Dillardfs Inc A
+DDS,Dillardâ€™s Inc A
 DE,Deere
 DEC,Diversified Energy Co PLC
 DECK,Deckers Outdoor
@@ -2160,7 +2160,7 @@ KIDS,OrthoPediatrics Corp
 KIDZ,Classover Holdings Inc B
 KIND,Nextdoor Holdings Inc A
 KINS,Kingstone Companies Inc
-KIRK,Kirklandfs Inc
+KIRK,Kirklandâ€™s Inc
 KL,Kirkland Lake Gold Ltd
 KLAC,KLA
 KLG,WK Kellogg Co
@@ -3048,7 +3048,7 @@ PKG,Packaging Corporation of America
 PKOH,Park Ohio Holdings Corp
 PL,Planet Labs PBC
 PLAB,Photronics Inc
-PLAY,Dave & Busterfs Entertainment Inc
+PLAY,Dave & Busterâ€™s Entertainment Inc
 PLBC,Plumas Bancorp
 PLBY,PLBY Group Inc
 PLCE,Children's Place
@@ -3172,7 +3172,7 @@ PYPD,PolyPid Ltd
 PYPL,PayPal Holdings
 PYXS,Pyxis Oncology Inc
 PZG,Paramount Gold Nevada Corp
-PZZA,Papa Johnfs International Inc
+PZZA,Papa Johnâ€™s International Inc
 QBTS,D-Wave Quantum Inc
 QCOM,Qualcomm
 QCRH,QCR Holdings Inc
@@ -4181,7 +4181,7 @@ WHD,Cactus Inc A
 WHG,Westwood Holdings Group
 WHR,Whirlpool
 WHWK,Whitehawk Therapeutics Inc
-WILC,G³¨Ø°¥Ì°ÄŞ¥²İÀ°Å¼®ÅÙ
+WILC,Gï½³ï½¨ï¾˜ï½°ï½¥ï¾Œï½°ï¾„ï¾ï½¥ï½²ï¾ï¾€ï½°ï¾…ï½¼ï½®ï¾…ï¾™
 WINA,Winmark
 WING,Wingstop
 WINT,Windtree Therapeutics Inc
@@ -4349,12 +4349,12 @@ AMZD,Direxion Daily AMZN Bull 2X Shares ETF
 AMZU,Direxion Daily AMZN Bull 2X Shares ETF
 AMZZ,GraniteShares 2x Long AMZN Daily ETF
 ARMU,TRex 2X Long ARM Daily Target ETF
-AVDE,ƒAƒoƒ“ƒeƒBƒX@ƒCƒ“ƒ^[ƒiƒVƒ‡ƒiƒ‹@ƒGƒNƒCƒeƒB@ETF
-AVEM,ƒAƒoƒ“ƒeƒBƒX@ƒGƒ}[ƒWƒ“ƒO@ƒ}[ƒPƒbƒc@ƒGƒNƒCƒeƒB@ETF
+AVDE,ã‚¢ãƒãƒ³ãƒ†ã‚£ã‚¹ã€€ã‚¤ãƒ³ã‚¿ãƒ¼ãƒŠã‚·ãƒ§ãƒŠãƒ«ã€€ã‚¨ã‚¯ã‚¤ãƒ†ã‚£ã€€ETF
+AVEM,ã‚¢ãƒãƒ³ãƒ†ã‚£ã‚¹ã€€ã‚¨ãƒãƒ¼ã‚¸ãƒ³ã‚°ã€€ãƒãƒ¼ã‚±ãƒƒãƒ„ã€€ã‚¨ã‚¯ã‚¤ãƒ†ã‚£ã€€ETF
 AVL,Direxion Daily AVGO Bull 2X Shares ETF
 AVS,Direxion Daily AVGO Bear 1X Shares ETF
-AVUS,ƒAƒoƒ“ƒeƒBƒX@US@ƒGƒNƒCƒeƒB@ETF
-AVUV,ƒAƒoƒ“ƒeƒBƒX@US@ƒXƒ‚[ƒ‹ƒLƒƒƒbƒv@ƒoƒŠƒ…[@ETF
+AVUS,ã‚¢ãƒãƒ³ãƒ†ã‚£ã‚¹ã€€USã€€ã‚¨ã‚¯ã‚¤ãƒ†ã‚£ã€€ETF
+AVUV,ã‚¢ãƒãƒ³ãƒ†ã‚£ã‚¹ã€€USã€€ã‚¹ãƒ¢ãƒ¼ãƒ«ã‚­ãƒ£ãƒƒãƒ—ã€€ãƒãƒªãƒ¥ãƒ¼ã€€ETF
 BABX,GraniteShares 2x Long BABA Daily ETF
 BBAG,JPMorgan BetaBuilders U.S. Aggregate Bond ETF
 BBH,VanEck Biotech ETF
@@ -4392,7 +4392,7 @@ CRWL,SPDR S&P Kensho Clean Power ETF
 CTEC,Graniteshares 2X L CRWD Daily ETF
 CURE,Direxion Daily Healthcare Bull 3x Shares
 CWB,SPDR BB Convertible Sec ETF
-CWEB,Direxion ƒfƒCƒŠ[ CSI’†‘ƒCƒ“ƒ^[ƒlƒbƒgw”Š” ƒuƒ‹ 2”{ ETF
+CWEB,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ CSIä¸­å›½ã‚¤ãƒ³ã‚¿ãƒ¼ãƒãƒƒãƒˆæŒ‡æ•°æ ª ãƒ–ãƒ« 2å€ ETF
 CWI,SPDR MSCI ACWI ex-US ETF
 CXSE,WisdomTree China ex-State-Owned Enterprises Fund
 DEM,WisdomTree Emerging Markets High Dividend Fund
@@ -4444,8 +4444,8 @@ EPHE,iShares MSCI Philippines ETF
 EPI,WisdomTree India Earnings Fund
 EPOL,iShares MSCI Poland ETF
 EPP,iShares MSCI Pacific ex Japan ETF
-ERX,Direxion ƒfƒCƒŠ[ ƒGƒlƒ‹ƒM[Š” ƒuƒ‹ 2”{ ETF
-ERY,Direxion ƒfƒCƒŠ[ ƒGƒlƒ‹ƒM[Š” ƒxƒA 2”{ ETF
+ERX,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ ã‚¨ãƒãƒ«ã‚®ãƒ¼æ ª ãƒ–ãƒ« 2å€ ETF
+ERY,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ ã‚¨ãƒãƒ«ã‚®ãƒ¼æ ª ãƒ™ã‚¢ 2å€ ETF
 ESGD,iShares Trust iShares ESG Awar
 ESGE,iShares Inc iShares ESG Aware
 ESGU,iShares ESG Aware MSCI USA ETF
@@ -4500,7 +4500,7 @@ FTQI,First Trust Nasdaq BuyWrite Income ETF
 FTSL,FT Senior Loan Fund
 FTSM,First Trust Enhanced Short Maturity ETF
 FTXL,FT Nasdaq Semiconduct ETF
-FVD,First Trust Value Line? Dividend Index Fund
+FVD,First Trust Value LineÂ® Dividend Index Fund
 FXH,FT Health Care Alphadex FUND ETF
 FXI,iShares China Large-Cap ETF
 FXL,FT Technology Alphadex Fund ETF
@@ -4513,14 +4513,14 @@ GGLL,Direxion Daily GOOGL Bull 2X Shares ETF
 GGLS,Direxion Daily Googl Bear 1x Shares
 GINN,Goldman Sachs Innovate Equity ETF
 GLD,SPDR Gold Share
-GLDM,SPDR? Gold MiniShares Trust
+GLDM,SPDRÂ® Gold MiniShares Trust
 GLIN,VanEck Vectors India Growth Leaders ETF
 GMF,SPDR S&P Emerging Asia Pacific ETF
 GNOM,Global X Genomics & Biotechnology ETF
 GRID,FT NASDAQ CleanEdge SmartGrid Infra ETF
 GUSH,Daily S&P Oil & Gas Exp. & Prod. Bull 2x Shares ETF
 GXDW,Global X Dorsey Wright Thematic ETF
-HACK,ƒAƒ“ƒvƒŠƒtƒ@ƒC ƒTƒCƒo[ƒZƒLƒ…ƒŠƒeƒB ETF
+HACK,ã‚¢ãƒ³ãƒ—ãƒªãƒ•ã‚¡ã‚¤ ã‚µã‚¤ãƒãƒ¼ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£ ETF
 HAIL,SPDR S&P Kensho Smart Mobility ETF
 HDV,iShares Core High Dividend ETF
 HEAL,Global X HealthTech ETF
@@ -4630,7 +4630,7 @@ NVDX,T-REX 2X Long Nvidia Daily Target ETF
 NXTG,FT Indxx NextG ETF
 OEF,iShares S&P 100 ETF
 OIH,VanEck Vectors Oil Services ETF
-PAVE,ƒOƒ[ƒoƒ‹ X •Ä‘ƒCƒ“ƒtƒ‰ŠÖ˜A ETF
+PAVE,ã‚°ãƒ­ãƒ¼ãƒãƒ« X ç±³å›½ã‚¤ãƒ³ãƒ•ãƒ©é–¢é€£ ETF
 PBD,Invesco Global Clean Energy ETF
 PFF,iShares Preferred and Income Securities ETF
 PFFD,Global X US Preferred ETF
@@ -4640,7 +4640,7 @@ PPH,VanEck Pharmaceutical ETF
 PSK,SPDR ICE Preferred Securities ETF
 PTIR,GraniteShares 2x Long PLTR Daily ETF
 PXF,Invesco RAFI Developed Markets exUS ETF
-QCLN,First Trust NASDAQ? Clean Edge? Green Energy Index Fund
+QCLN,First Trust NASDAQÂ® Clean EdgeÂ® Green Energy Index Fund
 QCML,GraniteShares 2x Long QCOM Daily ETF
 QDIV,Global X S&P 500 Quality Dividend ETF
 QID,PROSHARES ULTRASHORT QQQ
@@ -4652,7 +4652,7 @@ QQQJ,Invesco NASDAQ Next Gen 100 ETF
 QQQM,Invesco NASDAQ 100 ETF
 QQQS,Invesco NASDAQ Future Gen 200 ETF
 QQQU,DRX Daily Magnificent7 Bull2X Shares ETF
-QRMI,ƒOƒ[ƒoƒ‹‚w NASDAQ 100EƒŠƒXƒNŠÇ—EƒCƒ“ƒJƒ€ ETF
+QRMI,ã‚°ãƒ­ãƒ¼ãƒãƒ«ï¼¸ NASDAQ 100ãƒ»ãƒªã‚¹ã‚¯ç®¡ç†ãƒ»ã‚¤ãƒ³ã‚«ãƒ  ETF
 QTEC,FT Nasdaq-100-Technology Sector Index Fund
 QYLD,Global X Nasdaq 100 Covered Call ETF
 QYLG,Global X Nasdaq 100 Covered Ca
@@ -4672,7 +4672,7 @@ RTH,VanEck Retail ETF
 RWR,SPDR Dow Jones REIT ETF
 RWX,SPDR Dow Jones International Real Estate ETF
 RXI,iShares Global Consumer Discretionary ETF
-RYLD,ƒOƒ[ƒoƒ‹‚w Russell 2000EƒJƒo[ƒhEƒR[ƒ‹ ETF
+RYLD,ã‚°ãƒ­ãƒ¼ãƒãƒ«ï¼¸ Russell 2000ãƒ»ã‚«ãƒãƒ¼ãƒ‰ãƒ»ã‚³ãƒ¼ãƒ« ETF
 SDIV,Global X SuperDividendR ETF
 SDOW,PROSHARES ULTRAPRO SHORT DOW30
 SDVD,FT Vest SMID Rising Dividend Achievers Target Income ETF
@@ -4691,8 +4691,8 @@ SLX,VanEck Vectors Steel ETF
 SMCL,Graniteshares 2X L SMCI Daily ETF
 SMH,VanEck Semiconductor ETF
 SOCL,Global X Social Media ETF
-SOXL,Direxion ƒfƒCƒŠ[ ”¼“±‘ÌŠ” ƒuƒ‹ 3”{ ETF
-SOXS,Direxion ƒfƒCƒŠ[ ”¼“±‘ÌŠ” ƒxƒA 3”{ ETF
+SOXL,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ åŠå°ä½“æ ª ãƒ–ãƒ« 3å€ ETF
+SOXS,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ åŠå°ä½“æ ª ãƒ™ã‚¢ 3å€ ETF
 SPAB,SPDR Portfolio Aggregate Bond ETF
 SPDN,Direxion Daily S&P 500 Bear 1x Shares
 SPDW,SPDR Portfolio Developed World (ex-US) ETF
@@ -4702,14 +4702,14 @@ SPHY,SPDR Portfolio High Yield Bond ETF
 SPIB,SPDR Portfolio Intermediate Term Corporate Bond ETF
 SPIP,SPDR Portfolio TIPS ETF
 SPLB,SPDR Portfolio Long Term Corporate Bond ETF
-SPLG,SPDR??Portfolio S&P 500??ETF
+SPLG,SPDRÂ®Â Portfolio S&P 500Â®Â ETF
 SPMB,SPDR Portfolio Mortgage Backed Bond ETF
-SPMD,SPDR??Portfolio S&P 400 Mid Cap ETF
+SPMD,SPDRÂ®Â Portfolio S&P 400 Mid Cap ETF
 SPSB,SPDR Portfolio Short Term Corporate Bond ETF
-SPSM,SPDR??Portfolio S&P 600 Small Cap ETF
-SPTI,SPDR? Portfolio Intermediate Term Treasury ETF
+SPSM,SPDRÂ®Â Portfolio S&P 600 Small Cap ETF
+SPTI,SPDRÂ® Portfolio Intermediate Term Treasury ETF
 SPTL,SPDR Portfolio Long Term Treasury ETF
-SPTM,SPDR??Portfolio S&P 1500 Composite Stock Market ETF
+SPTM,SPDRÂ®Â Portfolio S&P 1500 Composite Stock Market ETF
 SPTS,SPDR Portfolio Short Term Treasury ETF
 SPUU,Direxion Daily S&P 500 Bull 2X Shares
 SPXL,Direxion Daily S&P 500 Bull 3X Shares ETF
@@ -4720,14 +4720,14 @@ SPYD,SPDR Portfolio S&P 500 High Dividend ETF
 SPYG,SPDR Portfolio S&P 500 Growth ETF
 SPYV,SPDR S&P 500 Value ETF
 SQQQ,Ultra ST Pro QQQ ETF
-SRET,Global X SuperDividend? REIT ETF
+SRET,Global X SuperDividendÂ® REIT ETF
 SRLN,SPDR Blackstone Senior Loan ETF
 SROI,Calamos Antetokounmpo Global Sustainable Equities ETF
 SUSA,iShares MSCI USA ESG Select ETF
 TAN,Invesco Solar ETF
 TDIV,First Trust NASDAQ Technology Dividend Index Fund
-TECL,Direxion ƒfƒCƒŠ[ ƒeƒNƒmƒƒW[Š” ƒuƒ‹ 3”{ ETF
-TECS,Direxion ƒfƒCƒŠ[ ƒeƒNƒmƒƒW[Š” ƒxƒA 3”{ ETF
+TECL,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ ãƒ†ã‚¯ãƒãƒ­ã‚¸ãƒ¼æ ª ãƒ–ãƒ« 3å€ ETF
+TECS,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ ãƒ†ã‚¯ãƒãƒ­ã‚¸ãƒ¼æ ª ãƒ™ã‚¢ 3å€ ETF
 THD,iShares MSCI Thailand ETF
 TIP,iShares TIPS Bond ETF
 TLT,iShares 20+ Year Treasury Bond ETF
@@ -4746,7 +4746,7 @@ TSMX,Direxion Daily TSM Bull 2X Shares ETF
 TSMZ,Direxion Daily TSM Bear 1X Shares ETF
 TUR,iShares MSCI Turkey ETF
 TZA,Direxion Daily Small Cap Bear 3X Shares ETF
-UBOT,Direxion ƒfƒCƒŠ[ ƒƒ{ƒeƒBƒbƒNƒX ƒA[ƒeƒBƒtƒBƒVƒƒƒ‹ ƒCƒ“ƒeƒŠƒWƒFƒ“ƒX ƒAƒ“ƒh ƒI[ƒgƒ[ƒVƒ‡ƒ“w”Š” ƒuƒ‹ 2”{ ETF
+UBOT,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ ãƒ­ãƒœãƒ†ã‚£ãƒƒã‚¯ã‚¹ ã‚¢ãƒ¼ãƒ†ã‚£ãƒ•ã‚£ã‚·ãƒ£ãƒ« ã‚¤ãƒ³ãƒ†ãƒªã‚¸ã‚§ãƒ³ã‚¹ ã‚¢ãƒ³ãƒ‰ ã‚ªãƒ¼ãƒˆãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³æŒ‡æ•°æ ª ãƒ–ãƒ« 2å€ ETF
 UBRL,GraniteShares 2x Long UBER Daily ETF
 UDOW,PROSHARES ULTRAPRO DOW30
 UPRO,PROSHARES ULTRAPRO S&P500
@@ -4823,10 +4823,10 @@ XLRE,Real Estate Select Sector SPDR Fund
 XLU,Utilities Select Sector SPDR Fund
 XLV,Health Care Select Sector SPDR Fund
 XLY,Consumer Discretionary Select Sector SPDR Fund
-XRMI,ƒOƒ[ƒoƒ‹‚w S&P 500EƒŠƒXƒNŠÇ—EƒCƒ“ƒJƒ€ ETF
+XRMI,ã‚°ãƒ­ãƒ¼ãƒãƒ«ï¼¸ S&P 500ãƒ»ãƒªã‚¹ã‚¯ç®¡ç†ãƒ»ã‚¤ãƒ³ã‚«ãƒ  ETF
 XSOE,WisdomTree Emerging Markets ex-State-Owned Enterprises Fund
 XYLD,Global X S&P 500 Covered Call
 XYLG,Global X S&P 500 Covered Call
-YANG,Direxion ƒfƒCƒŠ[ FTSE’†‘Š” ƒxƒA 3”{ ETF
-YINN,Direxion ƒfƒCƒŠ[ FTSE’†‘Š” ƒuƒ‹ 3”{ ETF
+YANG,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ FTSEä¸­å›½æ ª ãƒ™ã‚¢ 3å€ ETF
+YINN,Direxion ãƒ‡ã‚¤ãƒªãƒ¼ FTSEä¸­å›½æ ª ãƒ–ãƒ« 3å€ ETF
 YYY,Amplify High Income ETF
