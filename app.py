@@ -495,7 +495,7 @@ if use_csv:
             # 日付列の変換(文字列→datetime)
             parsed_dates = pd.to_datetime(df_csv.columns, errors='coerce')
             if parsed_dates.isnull().any():
-                raise ValueError("日付列の形式が不正です。")
+                raise ValueError("日付の形式が不正です。")
             df_csv.columns = parsed_dates  # 日付型に変換
             # 必ず日付順にソート（念のため）
             df_csv = df_csv.sort_index(axis=1)
