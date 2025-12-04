@@ -5,7 +5,7 @@ import streamlit as st
 # データ操作ライブラリ(表形式データの処理)
 import pandas as pd
 import numpy as np
-# 株価データの取得(Yahoo Finance API)
+# 価格データの取得(Yahoo Finance API)
 import yfinance as yf
 # 日本語テキストの正規化
 import unicodedata
@@ -33,7 +33,7 @@ import concurrent.futures
 
 # ====初期化====
 
-_data = None  # 株価終値のDaraFrame
+_data = None  # 終値のDaraFrame
 rf_rate_span = None  # 無リスク利子率(スパン単位換算値)
 
 # ====ページ設定とカスタムスタイル====
@@ -138,7 +138,7 @@ def get_latest_jgb_1year_rate():
         return None
 
 
-# ====日本株の銘柄リストを取得する関数====
+# ====日本の銘柄リストを取得する関数====
 
 @st.cache_data
 def load_japan_stock_list():
@@ -161,11 +161,11 @@ def load_japan_stock_list():
         return df
     except Exception as e:
         # エラー発生時は警告表示し，Noneを返す
-        st.warning(f"日本株リストの取得に失敗しました: {e}")
+        st.warning(f"日本銘柄リストの取得に失敗しました: {e}")
         return None
 
 
-# ====Yahoo Finance検索APIと日本株リストを使った銘柄検索クラス====
+# ====Yahoo Finance検索APIと日本銘柄リストを使った銘柄検索クラス====
 
 class AssetSearcher:
     def __init__(self, jp_stock_df=None):
@@ -177,7 +177,7 @@ class AssetSearcher:
         })
         self.last_request_time = 0
         self.min_request_interval = 0.5  # レート制限（0.5秒）
-        self.jp_stock_df = jp_stock_df  # 日本株リスト
+        self.jp_stock_df = jp_stock_df  # 日本銘柄リスト
     
     def search_assets(self, query, max_results=20):
         """銘柄を検索してリストを返す"""
@@ -187,7 +187,7 @@ class AssetSearcher:
         query = query.strip()
         assets = []
         
-        # 1. まず日本株リストから検索（日本語対応）
+        # 1. まず日本銘柄リストから検索（日本語対応）
         if self.jp_stock_df is not None:
             jp_results = self._search_japan_stocks(query)
             assets.extend(jp_results)
@@ -210,7 +210,7 @@ class AssetSearcher:
         return assets[:max_results]
     
     def _search_japan_stocks(self, query):
-        """日本株リストから検索（証券コードまたは銘柄名）"""
+        """日本銘柄リストから検索（証券コードまたは銘柄名）"""
         results = []
         
         try:
@@ -238,7 +238,7 @@ class AssetSearcher:
                 })
         
         except Exception as e:
-            st.warning(f"日本株検索エラー: {e}")
+            st.warning(f"日本銘柄検索エラー: {e}")
         
         return results
     
@@ -363,7 +363,7 @@ st.markdown("---")
 # ====入力データ関連の初期化====
 
 uploaded_file = None  # ユーザがアップロードするCSVファイルを格納
-log_returns = None  # 株価データから計算されるログリターン(DataFrameまたは配列)
+log_returns = None  # 価格データから計算されるログリターン(DataFrameまたは配列)
 
 
 # ====ドル円レートを取得する関数====
@@ -382,7 +382,7 @@ def fetch_usd_to_jpy_rates(start_date, end_date, interval):
     return fx.sort_index()
 
 
-# ====株価終値の取得関数====
+# ====終値の取得関数====
 
 def fetch_single_asset_data(args):
     """単一銘柄のデータを取得（並列処理用）"""
@@ -470,7 +470,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
                 st.warning(f"{symbol} の結果取得エラー: {e}")
     
     if not price_data:
-        raise ValueError("有効な株価データが一つも取得できませんでした．")
+        raise ValueError("有効な価格データが一つも取得できませんでした．")
     
     # DataFrameに統合
     df_merged = pd.DataFrame(price_data).sort_index()
@@ -486,9 +486,9 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
             if isinstance(fx_rates, pd.DataFrame):
                 fx_rates = fx_rates.squeeze()
             
-            # 米国株を検出（.Tで終わらないものを米国株と仮定）
+            # 米国銘柄を検出（.Tで終わらないものを米国銘柄と仮定）
             for symbol in df_merged.columns:
-                if not symbol.endswith(".T"):  # 米国株のみ
+                if not symbol.endswith(".T"):  
                     aligned_fx = fx_rates.reindex(df_merged.index).ffill().bfill()
                     if len(aligned_fx) == len(df_merged.index):
                         df_merged[symbol] = df_merged[symbol] * aligned_fx
@@ -498,7 +498,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
     return df_merged
 
 
-# ====株価終値からログリターンを計算する関数====
+# ====終値からログリターンを計算する関数====
 
 def calculate_log_returns(df, axis="auto"):
     """
@@ -510,7 +510,7 @@ def calculate_log_returns(df, axis="auto"):
     if df.isnull().values.any():
         raise ValueError("欠損値が含まれています．")
     if (df <= 0).values.any():
-        raise ValueError("0以下の株価が含まれています．")
+        raise ValueError("0以下の価格が含まれています．")
     if df.shape[1] < 2:
         raise ValueError("日付列が2列以上必要です．")
     df = df.sort_index()  # 日付順にソート
@@ -536,7 +536,7 @@ if use_csv:
     # サンプルCSVの作成
     # 本日を含めた直近10営業日(平日(祝日は考慮しない))の日付のリストを作成
     sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
-    # ダミーの株価データを作成
+    # ダミーの価格データを作成
     template_data = pd.DataFrame({
         date.strftime("%Y-%m-%d"): [  # 各日付を"YYYY-MM-DD"形式にして列に
             np.random.randint(2500, 2750),  # 7203用(例:トヨタ自動車)
@@ -598,8 +598,8 @@ if use_csv:
                 st.dataframe(df_csv_display)
             num_csv_tickers = df_csv_display.shape[0]
             st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_csv_tickers}</strong> 銘柄</p>", unsafe_allow_html=True)
-            # 株価データをセッションに保存
-            st.session_state.df_csv = df_csv  # 読み込んだ株価（行：銘柄，列：日付）
+            # 価格データをセッションに保存
+            st.session_state.df_csv = df_csv  # 読み込んだ価格（行：銘柄，列：日付）
         except Exception as e:
             st.error(f"CSVのデータ処理中にエラーが発生しました: {e}")
 
@@ -614,7 +614,7 @@ if not use_csv:
     # 銘柄検索機能
     st.markdown("### 銘柄検索")
     
-    # 日本株リストを読み込む
+    # 日本銘柄リストを読み込む
     if 'jp_stock_df' not in st.session_state:
         st.session_state.jp_stock_df = load_japan_stock_list()
     
@@ -634,7 +634,7 @@ if not use_csv:
     ))
     
     # 為替換算オプション
-    st.checkbox("米国株を円換算して分析する", key="convert_usd_to_jpy")
+    st.checkbox("証券コードの末尾が'.T'以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
     
     # 検索結果の表示
     if search_query:
@@ -711,7 +711,7 @@ if not use_csv:
         interval_map = {"日間": "1d", "週間": "1wk", "月間": "1mo"}
         interval = interval_map[span]
         
-        # 株価データ取得
+        # 価格データ取得
         symbols = [a["symbol"] for a in st.session_state.selected_assets]
         
         if len(symbols) < 2:
@@ -719,20 +719,20 @@ if not use_csv:
             st.stop()
         
         try:
-            with st.spinner("株価データを取得中..."):
+            with st.spinner("価格データを取得中..."):
                 close_df = fetch_close_prices(symbols, start_date, end_date, interval)
         except ValueError as e:
-            st.error(f"株価データ取得エラー：{e}")
+            st.error(f"価格データ取得エラー：{e}")
             st.stop()
         
         if close_df.empty:
-            st.error("株価データの取得に失敗しました．")
+            st.error("価格データの取得に失敗しました．")
             st.stop()
         
         # ソート（念のため）
         close_df = close_df.sort_index()
         
-        # 株価DataFrameをセッションに保存
+        # 価格DataFrameをセッションに保存
         st.session_state.close_df = close_df
         
         # 日付情報をセッションに保存
@@ -863,7 +863,7 @@ if show_calc_button:
             else:  # 銘柄検索入力モード
                 close_df = st.session_state.get("close_df", None)
                 if close_df is None:
-                    st.error("株価データが見つかりません．")
+                    st.error("価格データが見つかりません．")
                     st.stop()
                 try:
                     log_returns = calculate_log_returns(close_df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
@@ -888,7 +888,7 @@ if show_calc_button:
                 if valid_days < expected_count * 1:
                     st.info(
                         f"指定された期間（{expected_count}{span}）に対し，"
-                        f"共通の有効株価データが存在するのは {valid_days}{span} のみです．"
+                        f"共通の有効価格データが存在するのは {valid_days}{span} のみです．"
                     )
                 # 証券コードリスト
                 tickers = log_returns.columns.tolist()
@@ -1036,15 +1036,15 @@ if st.session_state.result_data:
     
     data = st.session_state.result_data
     
-    # 株価時系列の表示
+    # 価格時系列の表示
     if not use_csv:
         if close_df is not None and not close_df.empty:
-            with st.expander("株価の時系列（終値）を表示"):
+            with st.expander("価格の時系列（終値）を表示"):
                 close_df_display = close_df.copy()
                 close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
                 st.dataframe(close_df_display.round(2), use_container_width=True)
         else:
-            st.error("株価データが存在しません．")
+            st.error("価格データが存在しません．")
             st.stop()
     
     # 為替レート（USD/JPY）の表示
@@ -1054,7 +1054,7 @@ if st.session_state.result_data:
             # 1列DataFrameの可能性があるのでSeries化
             if isinstance(fx_rates, pd.DataFrame):
                 fx_rates = fx_rates["Close"] if "Close" in fx_rates.columns else fx_rates.squeeze()
-            # 株価で使った日付（共通日付）に限定して為替レートを抽出
+            # 価格で使った日付（共通日付）に限定して為替レートを抽出
             common_dates = close_df.index
             fx_trimmed = fx_rates.reindex(common_dates).bfill().ffill()
             fx_df = fx_trimmed.rename("USD/JPY").to_frame()
@@ -1116,7 +1116,7 @@ if st.session_state.result_data:
                 corr_matrix = st.session_state["corr_matrix"]
                 tickers = corr_matrix.columns
             else:
-                st.warning("相関行列を表示するには先に株価データの取得が必要です．")
+                st.warning("相関行列を表示するには先に価格データの取得が必要です．")
                 raise StopIteration
         
             corr_matrix = log_returns.corr()
@@ -1323,4 +1323,3 @@ st.markdown("""
         <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
     </div>
 """, unsafe_allow_html=True)
-
