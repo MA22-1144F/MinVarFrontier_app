@@ -227,8 +227,8 @@ class AssetSearcher:
             # 結果をマージ（重複を除く）
             matches = pd.concat([code_matches, name_matches]).drop_duplicates()
             
-            # 最大10件に制限
-            for _, row in matches.head(10).iterrows():
+            # 最大20件に制限
+            for _, row in matches.head(20).iterrows():
                 results.append({
                     'symbol': row['コード'] + '.T',  # .Tを付けて東証銘柄として識別
                     'name': row['銘柄名'],
@@ -1323,3 +1323,4 @@ st.markdown("""
         <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
     </div>
 """, unsafe_allow_html=True)
+
