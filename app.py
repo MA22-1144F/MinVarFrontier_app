@@ -81,8 +81,8 @@ st.markdown("""
 
 # ====セッションステートの初期化====
 
-# Streamlitアプリでは、セッションごとに変数を保持できる「st.session_state」を使って状態管理を行う。
-# 各変数が未定義の場合に初期値を設定する。
+# Streamlitアプリでは，セッションごとに変数を保持できる「st.session_state」を使って状態管理を行う．
+# 各変数が未定義の場合に初期値を設定する．
 if 'calculating' not in st.session_state:
     st.session_state.calculating = False  # 計算処理中であることを表すフラグ
 if 'result_data' not in st.session_state:
@@ -143,16 +143,16 @@ def get_latest_jgb_1year_rate():
 @st.cache_data
 def load_japan_stock_list():
     """
-    日本取引所(JPX)が公開している銘柄リスト(Excel)を読み込み、
-    証券コードと銘柄名の一覧をDataFrameとして返す。
-    読み込みに失敗した場合はNoneを返す。
+    日本取引所(JPX)が公開している銘柄リスト(Excel)を読み込み，
+    証券コードと銘柄名の一覧をDataFrameとして返す．
+    読み込みに失敗した場合はNoneを返す．
     """
     # 東京証券取引所が提供する東証上場銘柄一覧(Excel)
     url = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
     try:
         # Excelを読み込む(1行目をスキップ)
         df = pd.read_excel(url, skiprows=1, header=None)
-        # 必要な列(1列目:コード、2列目:銘柄名)のみ抽出し、欠損行を除外
+        # 必要な列(1列目:コード，2列目:銘柄名)のみ抽出し，欠損行を除外
         df = df[[1, 2]].dropna()
         # 列名を設定(コードと銘柄名)
         df.columns = ['コード', '銘柄名']
@@ -160,7 +160,7 @@ def load_japan_stock_list():
         df['コード'] = df['コード'].astype(str).str.strip()
         return df
     except Exception as e:
-        # エラー発生時は警告表示し、Noneを返す
+        # エラー発生時は警告表示し，Noneを返す
         st.warning(f"日本株リストの取得に失敗しました: {e}")
         return None
 
@@ -261,7 +261,7 @@ class AssetSearcher:
             data = response.json()
             return data.get('quotes', [])
         except Exception as e:
-            # エラーは警告として表示せず、空のリストを返す
+            # エラーは警告として表示せず，空のリストを返す
             return []
     
     def _convert_to_asset_info(self, yahoo_result):
@@ -295,7 +295,7 @@ class AssetSearcher:
 
 def normalize_input(text):
     """
-    入力文字列を正規化(全角→半角、記号の統一など)して返す。
+    入力文字列を正規化(全角→半角，記号の統一など)して返す．
     例: '７２０３' → '7203'
     """
     return unicodedata.normalize('NFKC', text)
@@ -303,7 +303,7 @@ def normalize_input(text):
 
 # ====タイトル表示(カスタムCSSで装飾)====
 
-# 通常表示では大きく、モバイル表示では小さく表示されるように調整
+# 通常表示では大きく，モバイル表示では小さく表示されるように調整
 st.markdown("""
     <style>
     /* タイトルの基本スタイル */
@@ -340,7 +340,7 @@ input_mode = st.radio(
     ["銘柄検索による入力", "CSVによる入力"], 
     horizontal=False
 )
-# 入力方式が前回と異なる場合、セッション情報を初期化(結果などをクリア)
+# 入力方式が前回と異なる場合，セッション情報を初期化(結果などをクリア)
 if "previous_input_mode" not in st.session_state:
     st.session_state.previous_input_mode = input_mode
 if st.session_state.previous_input_mode != input_mode:
@@ -371,11 +371,11 @@ log_returns = None  # 株価データから計算されるログリターン(Dat
 @st.cache_data
 def fetch_usd_to_jpy_rates(start_date, end_date, interval):
     """
-    指定期間・スパンでドル円為替レートを取得する（USD/JPY）。
+    指定期間・スパンでドル円為替レートを取得する（USD/JPY）．
     """
     fx = yf.download("JPY=X", start=start_date, end=end_date, interval=interval, progress=False)
     if fx is None or fx.empty or "Close" not in fx.columns:
-        raise ValueError("ドル円為替レートの取得に失敗しました。")
+        raise ValueError("ドル円為替レートの取得に失敗しました．")
     fx = fx["Close"]
     if fx.index.tz is not None:
         fx.index = fx.index.tz_convert("Asia/Tokyo").tz_localize(None)
@@ -439,10 +439,10 @@ def fetch_single_asset_data(args):
 
 def fetch_close_prices(symbols, start_date, end_date, interval):
     """
-    与えられた証券コードリストに対して、指定期間・頻度の調整後終値を並列取得する。
+    与えられた証券コードリストに対して，指定期間・頻度の調整後終値を並列取得する．
     """
     if not symbols:
-        raise ValueError("有効なティッカーが1つもありません。")
+        raise ValueError("有効なティッカーが1つもありません．")
     
     # 並列処理用の引数リストを作成
     args_list = [(symbol, start_date, end_date, interval) for symbol in symbols]
@@ -470,7 +470,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
                 st.warning(f"{symbol} の結果取得エラー: {e}")
     
     if not price_data:
-        raise ValueError("有効な株価データが一つも取得できませんでした。")
+        raise ValueError("有効な株価データが一つも取得できませんでした．")
     
     # DataFrameに統合
     df_merged = pd.DataFrame(price_data).sort_index()
@@ -479,7 +479,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
     common_dates = df_merged.dropna().index
     df_merged = df_merged.loc[common_dates]
     
-    # 為替換算オプションがオンなら、非JPY通貨をドル円換算（簡易的に全てUSDと仮定）
+    # 為替換算オプションがオンなら，非JPY通貨をドル円換算（簡易的に全てUSDと仮定）
     if st.session_state.get("convert_usd_to_jpy", False):
         try:
             fx_rates = fetch_usd_to_jpy_rates(start_date, end_date, interval)
@@ -502,17 +502,17 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
 
 def calculate_log_returns(df, axis="auto"):
     """
-    指定された方向に沿ってログリターンを計算する。
-    - axis=0 : 列方向（通常、行＝日付、列＝銘柄）
-    - axis=1 : 行方向（通常、行＝銘柄、列＝日付）
-    - axis='auto' の場合は列名が日付型なら axis=1、それ以外は axis=0 に自動判定
+    指定された方向に沿ってログリターンを計算する．
+    - axis=0 : 列方向（通常，行＝日付，列＝銘柄）
+    - axis=1 : 行方向（通常，行＝銘柄，列＝日付）
+    - axis='auto' の場合は列名が日付型なら axis=1，それ以外は axis=0 に自動判定
     """
     if df.isnull().values.any():
-        raise ValueError("欠損値が含まれています。")
+        raise ValueError("欠損値が含まれています．")
     if (df <= 0).values.any():
-        raise ValueError("0以下の株価が含まれています。")
+        raise ValueError("0以下の株価が含まれています．")
     if df.shape[1] < 2:
-        raise ValueError("日付列が2列以上必要です。")
+        raise ValueError("日付列が2列以上必要です．")
     df = df.sort_index()  # 日付順にソート
     # axis 自動判定：datetime型がどちらにあるかで決定
     if axis == "auto":
@@ -521,7 +521,7 @@ def calculate_log_returns(df, axis="auto"):
         elif pd.api.types.is_datetime64_any_dtype(df.index):
             axis = 0
         else:
-            raise ValueError("時系列（日付）情報が index/columns のどちらにも見つかりません。")
+            raise ValueError("時系列（日付）情報が index/columns のどちらにも見つかりません．")
     return np.log(df / df.shift(axis=axis)).dropna(axis=axis)
 
 
@@ -561,7 +561,7 @@ if use_csv:
             # 日付列の変換(文字列→datetime)
             parsed_dates = pd.to_datetime(df_csv.columns, errors='coerce')
             if parsed_dates.isnull().any():
-                raise ValueError("日付の形式が不正です。")
+                raise ValueError("日付の形式が不正です．")
             df_csv.columns = parsed_dates  # 日付型に変換
             # 必ず日付順にソート（念のため）
             df_csv = df_csv.sort_index(axis=1)
@@ -592,14 +592,14 @@ if use_csv:
             try:
                 df_csv_display.columns = [col.strftime('%Y/%m/%d') for col in df_csv_display.columns]
             except Exception as e:
-                st.error(f"列名の日付表示の整形に失敗しました（{e}）。")
+                st.error(f"列名の日付表示の整形に失敗しました（{e}）．")
                 st.stop()
             with st.expander("CSVのプレビューを表示"):
                 st.dataframe(df_csv_display)
             num_csv_tickers = df_csv_display.shape[0]
             st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_csv_tickers}</strong> 銘柄</p>", unsafe_allow_html=True)
             # 株価データをセッションに保存
-            st.session_state.df_csv = df_csv  # 読み込んだ株価（行：銘柄、列：日付）
+            st.session_state.df_csv = df_csv  # 読み込んだ株価（行：銘柄，列：日付）
         except Exception as e:
             st.error(f"CSVのデータ処理中にエラーが発生しました: {e}")
 
@@ -667,7 +667,7 @@ if not use_csv:
                     else:
                         st.write("✓ 選択済み")
         else:
-            st.warning("該当する銘柄が見つかりませんでした。")
+            st.warning("該当する銘柄が見つかりませんでした．")
     
     # 選択済み銘柄の表示
     if st.session_state.selected_assets:
@@ -701,10 +701,10 @@ if not use_csv:
         end_date = st.date_input("終了日", value=def_date_end)
         
         if end_date > date.today():
-            st.error("終了日が未来の日付になっています。正しい終了日を選んでください。")
+            st.error("終了日が未来の日付になっています．正しい終了日を選んでください．")
             st.stop()
         elif start_date >= end_date:
-            st.error("開始日は終了日より前の日付を選択してください。")
+            st.error("開始日は終了日より前の日付を選択してください．")
             st.stop()
         
         span = st.radio("スパン（日間・週間・月間）", ["日間", "週間", "月間"])
@@ -715,7 +715,7 @@ if not use_csv:
         symbols = [a["symbol"] for a in st.session_state.selected_assets]
         
         if len(symbols) < 2:
-            st.info("2銘柄以上をリストに追加する必要があります。")
+            st.info("2銘柄以上をリストに追加する必要があります．")
             st.stop()
         
         try:
@@ -726,7 +726,7 @@ if not use_csv:
             st.stop()
         
         if close_df.empty:
-            st.error("株価データの取得に失敗しました。")
+            st.error("株価データの取得に失敗しました．")
             st.stop()
         
         # ソート（念のため）
@@ -755,10 +755,10 @@ num_steps = st.number_input("期待利益率の段階数", min_value=5, max_valu
 result = get_latest_jgb_1year_rate()
 if result:  # 取得に成功した場合
     csv_url, latest_date, latest_rate, df = result
-    st.info(f"{latest_date} の短期国債金利は {latest_rate:.3f}% です。\n[財務省]({csv_url})")
+    st.info(f"{latest_date} の短期国債金利は {latest_rate:.3f}% です．\n[財務省]({csv_url})")
     rf_rate_default = latest_rate
 else:  # 取得に失敗した場合
-    st.warning("短期国債金利の取得に失敗しました。")
+    st.warning("短期国債金利の取得に失敗しました．")
     rf_rate_default = 0.50  # デフォルト値
 
 # ユーザが任意に設定可能な入力フォーム(%で表示)
@@ -773,8 +773,8 @@ rf_rate = st.number_input(
 # rf_rate(年利)をスパン単位に変換（定義のみ）
 def convert_rf_rate_safe(rf_rate, span):
     """
-    年率のリスクフリーレートをスパン（日間・週間・月間）に応じて変換。
-    spanが不明な場合はエラーとして処理を停止。
+    年率のリスクフリーレートをスパン（日間・週間・月間）に応じて変換．
+    spanが不明な場合はエラーとして処理を停止．
     """
     if span == "日間":
         return rf_rate / 252
@@ -783,10 +783,10 @@ def convert_rf_rate_safe(rf_rate, span):
     elif span == "月間":
         return rf_rate / 12
     else:
-        st.error(f"スパンが未定義または不正です（スパン：{span}）。")
+        st.error(f"スパンが未定義または不正です（スパン：{span}）．")
         st.stop()
 
-# span(日/週/月)が決まったら、rf_rate(年利)をスパン単位に変換
+# span(日/週/月)が決まったら，rf_rate(年利)をスパン単位に変換
 if span:
     rf_rate_span = convert_rf_rate_safe(rf_rate, span)
 
@@ -817,7 +817,7 @@ elif "S&P 500 (^GSPC)" in market_choice:
 elif "Dow Jones Industrial Average (^DJI)" in market_choice:
     market_ticker = "^DJI"
 else:
-    st.error("無効な市場ポートフォリオが選択されました。")
+    st.error("無効な市場ポートフォリオが選択されました．")
     st.stop()
 
 # 選択結果をSessionStateに保存
@@ -829,8 +829,8 @@ st.session_state.market_ticker = market_ticker
 st.markdown("---")
 
 # 計算ボタンを表示する条件
-# CSVモードの場合: CSVファイルがアップロードされており、df_csvが存在する
-# 銘柄検索モードの場合: close_dfが存在し、2銘柄以上が選択されている
+# CSVモードの場合: CSVファイルがアップロードされており，df_csvが存在する
+# 銘柄検索モードの場合: close_dfが存在し，2銘柄以上が選択されている
 show_calc_button = (
     (use_csv and "df_csv" in st.session_state and st.session_state.df_csv is not None and uploaded_file is not None) or
     (not use_csv and "close_df" in st.session_state and st.session_state.close_df is not None and len(st.session_state.selected_assets) >= 2)
@@ -840,7 +840,7 @@ show_calc_button = (
 if show_calc_button:
     run_calc = st.button("計算を実行", key="calc_button", disabled=st.session_state.calculating)
     
-    # 計算開始時の準備(calculatingフラグを立て、画面上に「計算中です。」と表示)
+    # 計算開始時の準備(calculatingフラグを立て，画面上に「計算中です．」と表示)
     if run_calc:
         st.session_state.calculating = True
         with st.spinner("計算中です..."):
@@ -848,9 +848,9 @@ if show_calc_button:
             if use_csv:  # CSV入力モード
                 df = st.session_state.get("df_csv", None)
                 if df is None:
-                    st.error("CSVファイルのデータが見つかりません。")
+                    st.error("CSVファイルのデータが見つかりません．")
                     st.stop()
-                # close_dfを定義（行＝日付、列＝銘柄）
+                # close_dfを定義（行＝日付，列＝銘柄）
                 close_df = df.T
                 try:
                     log_returns = calculate_log_returns(df, axis=1)  # df_csvからログリターン計算(axis=1で行方向に時系列計算)
@@ -859,11 +859,11 @@ if show_calc_button:
                     st.stop()
                 # 証券コードリスト
                 tickers = log_returns.index.tolist()
-                log_returns = log_returns.T  # 計算後、log_returnsを転置して「行＝日付、列＝銘柄」に揃える
+                log_returns = log_returns.T  # 計算後，log_returnsを転置して「行＝日付，列＝銘柄」に揃える
             else:  # 銘柄検索入力モード
                 close_df = st.session_state.get("close_df", None)
                 if close_df is None:
-                    st.error("株価データが見つかりません。")
+                    st.error("株価データが見つかりません．")
                     st.stop()
                 try:
                     log_returns = calculate_log_returns(close_df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
@@ -872,7 +872,7 @@ if show_calc_button:
                     st.stop()
                 # 有効な銘柄数チェック（2銘柄未満なら中断）
                 if log_returns.shape[1] < 2:
-                    st.error("有効なデータを持つ銘柄が2つ以上必要です。期間を見直してください。")
+                    st.error("有効なデータを持つ銘柄が2つ以上必要です．期間を見直してください．")
                     st.session_state.calculating = False
                     st.stop()
                 # 日数のカウント（有効な共通データ行数）
@@ -887,8 +887,8 @@ if show_calc_button:
                 # 警告表示
                 if valid_days < expected_count * 1:
                     st.info(
-                        f"指定された期間（{expected_count}{span}）に対し、"
-                        f"共通の有効株価データが存在するのは {valid_days}{span} のみです。"
+                        f"指定された期間（{expected_count}{span}）に対し，"
+                        f"共通の有効株価データが存在するのは {valid_days}{span} のみです．"
                     )
                 # 証券コードリスト
                 tickers = log_returns.columns.tolist()
@@ -905,11 +905,11 @@ if show_calc_button:
             # 最小投資割合のバリデーションチェック(全銘柄均等以上の最小割合は許容しない)
             N = len(tickers)
             if min_weight >= (1 / N):
-                st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.4f} 未満である必要があります）。")
+                st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.4f} 未満である必要があります）．")
                 st.session_state.calculating = False
                 st.stop()
             if min_weight < 0 or min_weight >= 0.5:
-                st.error("最小投資割合は0以上0.5未満である必要があります。")
+                st.error("最小投資割合は0以上0.5未満である必要があります．")
                 st.session_state.calculating = False
                 st.stop()
             
@@ -973,7 +973,7 @@ if show_calc_button:
             
             # 最適化結果が1点も得られなかった場合はエラー終了
             if len(frontier_vol) == 0:
-                st.error("最小分散フロンティアの計算に失敗しました。銘柄数・期間・最小投資割合を見直してください。")
+                st.error("最小分散フロンティアの計算に失敗しました．銘柄数・期間・最小投資割合を見直してください．")
                 st.stop()
             
             # start_date,end_date,intervalの情報を取得
@@ -981,7 +981,7 @@ if show_calc_button:
             end_date = st.session_state.get("end_date", None)
             interval = st.session_state.get("interval", None)
             if None in (start_date, end_date, interval):
-                st.error("日付が正しく設定されていません。")
+                st.error("日付が正しく設定されていません．")
                 st.stop()
             
             # yfinanceで市場ポートフォリオデータ取得
@@ -990,7 +990,7 @@ if show_calc_button:
                 market_data = yf.download(market_ticker, start=start_date, end=end_date, interval=interval, progress=False)
                 # ダウンロードの失敗チェック
                 if market_data is None or market_data.empty:
-                    st.error(f"市場ポートフォリオ {market_ticker} のデータ取得に失敗しました。")
+                    st.error(f"市場ポートフォリオ {market_ticker} のデータ取得に失敗しました．")
                     st.stop()
                 # 市場リターンを計算
                 market_returns = np.log(market_data["Close"] / market_data["Close"].shift(1)).dropna()
@@ -1044,7 +1044,7 @@ if st.session_state.result_data:
                 close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
                 st.dataframe(close_df_display.round(2), use_container_width=True)
         else:
-            st.error("株価データが存在しません。")
+            st.error("株価データが存在しません．")
             st.stop()
     
     # 為替レート（USD/JPY）の表示
@@ -1116,7 +1116,7 @@ if st.session_state.result_data:
                 corr_matrix = st.session_state["corr_matrix"]
                 tickers = corr_matrix.columns
             else:
-                st.warning("相関行列を表示するには先に株価データの取得が必要です。")
+                st.warning("相関行列を表示するには先に株価データの取得が必要です．")
                 raise StopIteration
         
             corr_matrix = log_returns.corr()
@@ -1148,7 +1148,7 @@ if st.session_state.result_data:
     # 最小分散フロンティアと資本市場線の表示
     with st.expander("最小分散フロンティア(MVF)と資本市場線(CML)を表示"):
         if data["frontier_vol"] is None or len(data["frontier_vol"]) == 0:
-            st.error("最小分散フロンティアが正常に計算できませんでした。")
+            st.error("最小分散フロンティアが正常に計算できませんでした．")
         else:
             # 最小分散点のインデックス
             min_index = np.nanargmin(data["frontier_vol"])
@@ -1319,7 +1319,7 @@ if st.session_state.result_data:
 st.markdown("""
     <hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
     <div style='text-align: left; font-size: 0.8rem; color: gray;'>
-        本アプリは学習目的で作成されたものであり、投資判断への利用を想定したものではありません。
-        <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます。
+        本アプリは学習目的で作成されたものであり，投資判断への利用を想定したものではありません．
+        <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
     </div>
 """, unsafe_allow_html=True)
