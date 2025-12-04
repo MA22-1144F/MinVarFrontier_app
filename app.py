@@ -138,10 +138,37 @@ def get_latest_jgb_1year_rate():
         return None
 
 
-# ====Yahoo Finance検索APIを使った銘柄検索クラス====
+# ====日本株の銘柄リストを取得する関数====
+
+@st.cache_data
+def load_japan_stock_list():
+    """
+    日本取引所(JPX)が公開している銘柄リスト(Excel)を読み込み、
+    証券コードと銘柄名の一覧をDataFrameとして返す。
+    読み込みに失敗した場合はNoneを返す。
+    """
+    # 東京証券取引所が提供する東証上場銘柄一覧(Excel)
+    url = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
+    try:
+        # Excelを読み込む(1行目をスキップ)
+        df = pd.read_excel(url, skiprows=1, header=None)
+        # 必要な列(1列目:コード、2列目:銘柄名)のみ抽出し、欠損行を除外
+        df = df[[1, 2]].dropna()
+        # 列名を設定(コードと銘柄名)
+        df.columns = ['コード', '銘柄名']
+        # コードを文字列に変換して空白除去
+        df['コード'] = df['コード'].astype(str).str.strip()
+        return df
+    except Exception as e:
+        # エラー発生時は警告表示し、Noneを返す
+        st.warning(f"日本株リストの取得に失敗しました: {e}")
+        return None
+
+
+# ====Yahoo Finance検索APIと日本株リストを使った銘柄検索クラス====
 
 class AssetSearcher:
-    def __init__(self):
+    def __init__(self, jp_stock_df=None):
         self.search_url = "https://query1.finance.yahoo.com/v1/finance/search"
         self.session = requests.Session()
         self.session.headers.update({
@@ -150,30 +177,70 @@ class AssetSearcher:
         })
         self.last_request_time = 0
         self.min_request_interval = 0.5  # レート制限（0.5秒）
+        self.jp_stock_df = jp_stock_df  # 日本株リスト
     
     def search_assets(self, query, max_results=20):
         """銘柄を検索してリストを返す"""
         if not query or len(query.strip()) < 1:
             return []
         
+        query = query.strip()
+        assets = []
+        
+        # 1. まず日本株リストから検索（日本語対応）
+        if self.jp_stock_df is not None:
+            jp_results = self._search_japan_stocks(query)
+            assets.extend(jp_results)
+        
+        # 2. Yahoo Finance APIで検索（英数字）
         try:
             self._rate_limit()
-            search_results = self._call_yahoo_search_api(query.strip())
+            yahoo_results = self._call_yahoo_search_api(query)
             
-            if not search_results:
-                return []
-            
-            assets = []
-            for result in search_results[:max_results]:
+            for result in yahoo_results:
                 asset = self._convert_to_asset_info(result)
                 if asset:
-                    assets.append(asset)
-            
-            return assets
-            
+                    # 重複を避ける（同じシンボルが既にある場合はスキップ）
+                    if not any(a['symbol'] == asset['symbol'] for a in assets):
+                        assets.append(asset)
         except Exception as e:
-            st.error(f"検索エラー: {e}")
-            return []
+            st.warning(f"Yahoo Finance検索エラー: {e}")
+        
+        # 最大結果数に制限
+        return assets[:max_results]
+    
+    def _search_japan_stocks(self, query):
+        """日本株リストから検索（証券コードまたは銘柄名）"""
+        results = []
+        
+        try:
+            # 証券コードで検索
+            code_matches = self.jp_stock_df[
+                self.jp_stock_df['コード'].str.contains(query, case=False, na=False)
+            ]
+            
+            # 銘柄名で検索（日本語対応）
+            name_matches = self.jp_stock_df[
+                self.jp_stock_df['銘柄名'].str.contains(query, case=False, na=False)
+            ]
+            
+            # 結果をマージ（重複を除く）
+            matches = pd.concat([code_matches, name_matches]).drop_duplicates()
+            
+            # 最大10件に制限
+            for _, row in matches.head(10).iterrows():
+                results.append({
+                    'symbol': row['コード'] + '.T',  # .Tを付けて東証銘柄として識別
+                    'name': row['銘柄名'],
+                    'exchange': 'Tokyo',
+                    'currency': 'JPY',
+                    'type': 'EQUITY'
+                })
+        
+        except Exception as e:
+            st.warning(f"日本株検索エラー: {e}")
+        
+        return results
     
     def _rate_limit(self):
         """レート制限を適用"""
@@ -194,7 +261,7 @@ class AssetSearcher:
             data = response.json()
             return data.get('quotes', [])
         except Exception as e:
-            st.error(f"API呼び出しエラー: {e}")
+            # エラーは警告として表示せず、空のリストを返す
             return []
     
     def _convert_to_asset_info(self, yahoo_result):
@@ -221,7 +288,6 @@ class AssetSearcher:
             }
             
         except Exception as e:
-            st.error(f"変換エラー: {e}")
             return None
 
 
@@ -548,14 +614,24 @@ if not use_csv:
     # 銘柄検索機能
     st.markdown("### 銘柄検索")
     
+    # 日本株リストを読み込む
+    if 'jp_stock_df' not in st.session_state:
+        st.session_state.jp_stock_df = load_japan_stock_list()
+    
+    jp_stock_df = st.session_state.jp_stock_df
+    
     # AssetSearcherのインスタンスを作成（セッション状態で管理）
     if 'asset_searcher' not in st.session_state:
-        st.session_state.asset_searcher = AssetSearcher()
+        st.session_state.asset_searcher = AssetSearcher(jp_stock_df=jp_stock_df)
     
     searcher = st.session_state.asset_searcher
     
     # 検索入力
-    search_query = normalize_input(st.text_input("銘柄コードまたは銘柄名を入力", key="search_input"))
+    search_query = normalize_input(st.text_input(
+        "銘柄コードまたは銘柄名を入力",
+        placeholder="例: 7203, トヨタ自動車, AAPL, Apple",
+        key="search_input"
+    ))
     
     # 為替換算オプション
     st.checkbox("米国株を円換算して分析する", key="convert_usd_to_jpy")
@@ -570,13 +646,17 @@ if not use_csv:
             
             # 検索結果を選択肢として表示
             for i, asset in enumerate(search_results):
-                col1, col2, col3 = st.columns([3, 5, 2])
+                col1, col2, col3, col4 = st.columns([2, 4, 2, 1])
                 
                 with col1:
                     st.write(f"**{asset['symbol']}**")
                 with col2:
                     st.write(f"{asset['name']}")
                 with col3:
+                    # 取引所と通貨の表示
+                    exchange_info = asset['exchange'] if asset['exchange'] else 'N/A'
+                    st.write(f"{asset['currency']} ({exchange_info})")
+                with col4:
                     # 既に選択済みかチェック
                     is_selected = any(a['symbol'] == asset['symbol'] for a in st.session_state.selected_assets)
                     
@@ -600,7 +680,8 @@ if not use_csv:
             cols = st.columns([2, 4, 2, 1])
             cols[0].write(asset["symbol"])
             cols[1].write(asset["name"])
-            cols[2].write(f"{asset['currency']} ({asset['exchange']})")
+            exchange_display = asset.get('exchange', 'N/A')
+            cols[2].write(f"{asset['currency']} ({exchange_display})")
             if cols[3].button("削除", key=f"del_{i}"):
                 st.session_state.selected_assets.pop(i)
                 st.rerun()
