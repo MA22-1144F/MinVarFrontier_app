@@ -313,7 +313,7 @@ def fetch_usd_to_jpy_rates(start_date, end_date, interval):
     """
     指定期間・スパンでドル円為替レートを取得する（USD/JPY）。
     """
-    fx = yf.download("JPY=X", start=start_date, end=end_date, interval=interval, auto_adjust=False, progress=False)
+    fx = yf.download("JPY=X", start=start_date, end=end_date, interval=interval, progress=False)
     if fx is None or fx.empty or "Close" not in fx.columns:
         raise ValueError("ドル円為替レートの取得に失敗しました。")
     fx = fx["Close"]
@@ -336,7 +336,6 @@ def safe_download(tickers, start, end, interval, retries=3, delay=5):
                 end=end_date,
                 interval=interval,
                 group_by='ticker',
-                auto_adjust=False,
                 progress=False
             )
             if df is not None and not df.empty:
