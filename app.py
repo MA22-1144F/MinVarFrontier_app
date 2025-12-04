@@ -31,6 +31,196 @@ import time
 # 並列処理用
 import concurrent.futures
 
+# ====言語設定====
+
+# 言語辞書
+LANGUAGES = {
+    "en": {
+        "page_title": "Minimum Variance Frontier Calculation",
+        "app_title": "Minimum Variance Frontier Calculation",
+        "data_input_method": "Select Data Input Method",
+        "ticker_search_input": "Input via Ticker Search",
+        "csv_input": "Input via CSV",
+        "ticker_search": "Ticker Search",
+        "ticker_search_placeholder": "e.g., 7203, Toyota Motor, AAPL, Apple",
+        "ticker_search_label": "Enter ticker code or name",
+        "convert_usd_to_jpy": "Convert tickers not ending with '.T' from USD to JPY for analysis",
+        "search_results": "Search Results",
+        "results_count": "件",
+        "add_button": "Add",
+        "already_selected": "✓ Selected",
+        "delete_button": "Delete",
+        "reset_button": "Reset",
+        "no_results": "No matching tickers found.",
+        "selected_tickers": "Selected Tickers",
+        "analysis_target_count": "Number of tickers for analysis",
+        "tickers": "tickers",
+        "analysis_period": "Analysis Period Settings",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "span_label": "Span (Daily, Weekly, Monthly)",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "csv_file_upload": "Select CSV File",
+        "sample_csv_download": "Download Sample CSV",
+        "csv_preview": "Show CSV Preview",
+        "span_auto_detected": "Span auto-detected",
+        "avg_interval": "average interval",
+        "days": "days",
+        "analysis_params": "Analysis Parameters",
+        "min_weight": "Minimum Investment Ratio",
+        "num_steps": "Number of Expected Return Steps",
+        "risk_free_rate_label": "Annual Rate of Risk-Free Asset (%)",
+        "jgb_rate_info": "Short-term JGB rate",
+        "jgb_rate_failed": "Failed to retrieve short-term JGB rate.",
+        "market_portfolio": "Market Portfolio Selection",
+        "market_portfolio_label": "Select Market Portfolio",
+        "calc_button": "Execute Calculation",
+        "calculating": "Calculating...",
+        "analysis_results": "Analysis Results",
+        "price_time_series": "Show Price Time Series (Closing Prices)",
+        "fx_rate_display": "Show Exchange Rate (USD/JPY)",
+        "fx_rate_label": "Exchange Rate (Yen)",
+        "fx_rate_download": "Download Exchange Rate as CSV",
+        "std_dev_return": "Show Standard Deviation and Expected Return for Each Ticker",
+        "ticker_code": "Ticker Code",
+        "std_dev": "Standard Deviation",
+        "expected_return": "Expected Return",
+        "correlation_matrix": "Show Correlation Matrix (Heatmap)",
+        "correlation_download": "Download Correlation Matrix as CSV",
+        "mvf_cml_display": "Show Minimum Variance Frontier (MVF) and Capital Market Line (CML)",
+        "mvf_cml_download": "Download Standard Deviation and Investment Ratio for Each Expected Return as CSV",
+        "sml_display": "Show Security Market Line (SML)",
+        "beta": "β",
+        "beta_download": "Download β Values for Each Ticker as CSV",
+        "beta_value": "β Value",
+        "disclaimer": "This app is created for educational purposes and is not intended for investment decisions.<br>The developer assumes no responsibility for any damages arising from the use of this app.",
+        "error_future_date": "End date is in the future. Please select a valid end date.",
+        "error_date_order": "Start date must be earlier than end date.",
+        "error_min_tickers": "You need to add at least 2 tickers to the list.",
+        "error_price_fetch": "Price data fetch error",
+        "error_price_empty": "Failed to fetch price data.",
+        "error_csv_date_format": "Invalid date format.",
+        "error_csv_processing": "Error occurred during CSV data processing",
+        "error_log_return": "Failed to calculate log returns",
+        "error_valid_tickers": "At least 2 tickers with valid data are required. Please review the period.",
+        "info_common_data": "For the specified period",
+        "info_common_data_only": "only",
+        "info_common_data_available": "of common valid price data is available.",
+        "error_min_weight_large": "Minimum investment ratio is too large for the selected number of tickers (must be less than",
+        "error_min_weight_range": "Minimum investment ratio must be between 0 and 0.5.",
+        "error_mvf_failed": "Failed to calculate minimum variance frontier. Please review the number of tickers, period, and minimum investment ratio.",
+        "error_date_not_set": "Dates are not set correctly.",
+        "error_market_data_failed": "Failed to fetch market portfolio data for",
+        "error_market_data_fetch": "Error occurred while fetching market data",
+        "error_no_price_data": "Price data does not exist.",
+        "error_fx_display": "Failed to display exchange rate",
+        "error_correlation_display": "Error occurred while displaying correlation matrix",
+        "error_mvf_not_calculated": "Minimum variance frontier could not be calculated correctly.",
+        "warning_correlation_data": "Price data must be fetched first to display correlation matrix.",
+        "error_csv_no_data": "CSV file data not found.",
+        "error_span_estimation": "Error occurred during span estimation",
+        "error_column_date_format": "Failed to format column names to date display",
+        "error_invalid_market_portfolio": "Invalid market portfolio selected.",
+        "date_label": "Date",
+        "exchange_rate": "Exchange Rate",
+        "language_select": "Language"
+    },
+    "ja": {
+        "page_title": "最小分散フロンティアの計算",
+        "app_title": "最小分散フロンティアの計算",
+        "data_input_method": "データ入力方法を選択",
+        "ticker_search_input": "銘柄検索による入力",
+        "csv_input": "CSVによる入力",
+        "ticker_search": "銘柄検索",
+        "ticker_search_placeholder": "例: 7203, トヨタ自動車, AAPL, Apple",
+        "ticker_search_label": "銘柄コードまたは銘柄名を入力",
+        "convert_usd_to_jpy": "証券コードの末尾が'.T'以外の銘柄をドル円換算して分析する",
+        "search_results": "検索結果",
+        "results_count": "件",
+        "add_button": "追加",
+        "already_selected": "✓ 選択済み",
+        "delete_button": "削除",
+        "reset_button": "リセット",
+        "no_results": "該当する銘柄が見つかりませんでした．",
+        "selected_tickers": "選択中の銘柄リスト",
+        "analysis_target_count": "分析対象銘柄数",
+        "tickers": "銘柄",
+        "analysis_period": "分析期間の設定",
+        "start_date": "開始日",
+        "end_date": "終了日",
+        "span_label": "スパン（日足・週足・月足）",
+        "daily": "日足",
+        "weekly": "週足",
+        "monthly": "月足",
+        "csv_file_upload": "CSVファイルを選択",
+        "sample_csv_download": "サンプルCSVをDL",
+        "csv_preview": "CSVのプレビューを表示",
+        "span_auto_detected": "スパンは自動判定されました",
+        "avg_interval": "平均間隔",
+        "days": "日",
+        "analysis_params": "分析パラメータの設定",
+        "min_weight": "最小投資割合",
+        "num_steps": "期待利益率の段階数",
+        "risk_free_rate_label": "無リスク資産の年利（%）",
+        "jgb_rate_info": "の短期国債金利は",
+        "jgb_rate_failed": "短期国債金利の取得に失敗しました．",
+        "market_portfolio": "比較市場ポートフォリオの選択",
+        "market_portfolio_label": "市場ポートフォリオを選択",
+        "calc_button": "計算を実行",
+        "calculating": "計算中です...",
+        "analysis_results": "分析結果",
+        "price_time_series": "価格の時系列（終値）を表示",
+        "fx_rate_display": "為替レート（USD/JPY）の表示",
+        "fx_rate_label": "為替レート（円）",
+        "fx_rate_download": "為替レートをCSVとしてダウンロード",
+        "std_dev_return": "各銘柄の標準偏差と期待利益率を表示",
+        "ticker_code": "証券コード",
+        "std_dev": "標準偏差",
+        "expected_return": "期待利益率",
+        "correlation_matrix": "銘柄間の相関行列（ヒートマップ）を表示",
+        "correlation_download": "相関係数をCSVとしてダウンロード",
+        "mvf_cml_display": "最小分散フロンティア(MVF)と資本市場線(CML)を表示",
+        "mvf_cml_download": "各期待利益率における標準偏差と投資割合をCSVとしてダウンロード",
+        "sml_display": "証券市場線(SML)を表示",
+        "beta": "β",
+        "beta_download": "各銘柄のβ値をCSVとしてダウンロード",
+        "beta_value": "β値",
+        "disclaimer": "本アプリは学習目的で作成されたものであり，投資判断への利用を想定したものではありません．<br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．",
+        "error_future_date": "終了日が未来の日付になっています．正しい終了日を選んでください．",
+        "error_date_order": "開始日は終了日より前の日付を選択してください．",
+        "error_min_tickers": "2銘柄以上をリストに追加する必要があります．",
+        "error_price_fetch": "価格データ取得エラー",
+        "error_price_empty": "価格データの取得に失敗しました．",
+        "error_csv_date_format": "日付の形式が不正です．",
+        "error_csv_processing": "CSVのデータ処理中にエラーが発生しました",
+        "error_log_return": "ログリターンの計算に失敗しました",
+        "error_valid_tickers": "有効なデータを持つ銘柄が2つ以上必要です．期間を見直してください．",
+        "info_common_data": "指定された期間（",
+        "info_common_data_only": "）に対し，共通の有効価格データが存在するのは ",
+        "info_common_data_available": " のみです．",
+        "error_min_weight_large": "選択された銘柄数に対して最小投資割合が大きすぎます（",
+        "error_min_weight_range": "最小投資割合は0以上0.5未満である必要があります．",
+        "error_mvf_failed": "最小分散フロンティアの計算に失敗しました．銘柄数・期間・最小投資割合を見直してください．",
+        "error_date_not_set": "日付が正しく設定されていません．",
+        "error_market_data_failed": "市場ポートフォリオ",
+        "error_market_data_fetch": "市場データ取得中にエラーが発生しました",
+        "error_no_price_data": "価格データが存在しません．",
+        "error_fx_display": "為替レートの表示に失敗しました",
+        "error_correlation_display": "相関行列の表示中にエラーが発生しました",
+        "error_mvf_not_calculated": "最小分散フロンティアが正常に計算できませんでした．",
+        "warning_correlation_data": "相関行列を表示するには先に価格データの取得が必要です．",
+        "error_csv_no_data": "CSVファイルのデータが見つかりません．",
+        "error_span_estimation": "スパンの推定中にエラーが発生しました",
+        "error_column_date_format": "列名の日付表示の整形に失敗しました",
+        "error_invalid_market_portfolio": "無効な市場ポートフォリオが選択されました．",
+        "date_label": "日付",
+        "exchange_rate": "為替レート",
+        "language_select": "言語"
+    }
+}
+
 # ====初期化====
 
 _data = None  # 終値のDaraFrame
@@ -83,12 +273,19 @@ st.markdown("""
 
 # Streamlitアプリでは，セッションごとに変数を保持できる「st.session_state」を使って状態管理を行う．
 # 各変数が未定義の場合に初期値を設定する．
+if 'language' not in st.session_state:
+    st.session_state.language = 'en'  # デフォルト言語は英語
 if 'calculating' not in st.session_state:
     st.session_state.calculating = False  # 計算処理中であることを表すフラグ
 if 'result_data' not in st.session_state:
     st.session_state.result_data = None  # 計算結果を格納する変数
 if 'selected_assets' not in st.session_state:
     st.session_state.selected_assets = []  # ユーザが選択した銘柄のリスト
+
+# 言語取得関数
+def t(key):
+    """言語辞書からテキストを取得"""
+    return LANGUAGES[st.session_state.language].get(key, key)
 
 
 # ====財務省から短期国債金利を取得する関数====
@@ -301,26 +498,44 @@ def normalize_input(text):
     return unicodedata.normalize('NFKC', text)
 
 
+# ====言語選択UI====
+
+# 言語選択を右上に配置
+col1, col2 = st.columns([4, 1])
+with col2:
+    language_options = {"English": "en", "日本語": "ja"}
+    selected_language_name = st.selectbox(
+        t("language_select"),
+        options=list(language_options.keys()),
+        index=0 if st.session_state.language == "en" else 1,
+        key="language_selector"
+    )
+    # 言語が変更された場合、セッションステートを更新
+    new_language = language_options[selected_language_name]
+    if new_language != st.session_state.language:
+        st.session_state.language = new_language
+        st.rerun()
+
 # ====タイトル表示(カスタムCSSで装飾)====
 
 # 通常表示では大きく，モバイル表示では小さく表示されるように調整
-st.markdown("""
+st.markdown(f"""
     <style>
     /* タイトルの基本スタイル */
-    .custom-title {
+    .custom-title {{
         text-align: center;
         font-size: 40px;
         margin-bottom: 1rem;
-    }
+    }}
     /* モバイル表示（画面幅600px以下）ではフォントサイズを縮小 */
-    @media screen and (max-width: 600px) {
-        .custom-title {
+    @media screen and (max-width: 600px) {{
+        .custom-title {{
             font-size: 25px;
-        }
-    }
+        }}
+    }}
     </style>
     <!-- タイトルを表示する要素 -->
-    <div class='custom-title'>最小分散フロンティアの計算</div>
+    <div class='custom-title'>{t("app_title")}</div>
 """, unsafe_allow_html=True)
 
 # 区切り線を表示
@@ -336,8 +551,8 @@ st.markdown("""
 previous_input_mode = st.session_state.get("previous_input_mode", None)
 # ユーザに入力方式を選ばせるラジオボタン
 input_mode = st.radio(
-    "データ入力方法を選択", 
-    ["銘柄検索による入力", "CSVによる入力"], 
+    t("data_input_method"),
+    [t("ticker_search_input"), t("csv_input")],
     horizontal=False
 )
 # 入力方式が前回と異なる場合，セッション情報を初期化(結果などをクリア)
@@ -353,7 +568,7 @@ if st.session_state.previous_input_mode != input_mode:
 # 現在の入力方式をセッションに記録(次回の比較に使用)
 st.session_state.previous_input_mode = input_mode
 # CSV入力モードを真偽値で保持(以降の分岐処理に使用)
-use_csv = input_mode == "CSVによる入力"
+use_csv = input_mode == t("csv_input")
 st.session_state.use_csv = use_csv
 
 # 区切り線を表示
@@ -532,7 +747,7 @@ if use_csv:
     span = None
     interval = None
     # CSVファイルのアップロード
-    uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
+    uploaded_file = st.file_uploader(t("csv_file_upload"), type="csv")
     # サンプルCSVの作成
     # 本日を含めた直近10営業日(平日(祝日は考慮しない))の日付のリストを作成
     sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
@@ -552,7 +767,7 @@ if use_csv:
     # CSV文字列を取り出す
     csv_data = csv_buffer.getvalue()
     # サンプルCSVのダウンロード
-    st.download_button("サンプルCSVをDL", data=csv_data, file_name="sample.csv", mime="text/csv")
+    st.download_button(t("sample_csv_download"), data=csv_data, file_name="sample.csv", mime="text/csv")
     # 実際のCSVファイル処理
     if uploaded_file:
         try:
@@ -561,7 +776,7 @@ if use_csv:
             # 日付列の変換(文字列→datetime)
             parsed_dates = pd.to_datetime(df_csv.columns, errors='coerce')
             if parsed_dates.isnull().any():
-                raise ValueError("日付の形式が不正です．")
+                raise ValueError(t("error_csv_date_format"))
             df_csv.columns = parsed_dates  # 日付型に変換
             # 必ず日付順にソート（念のため）
             df_csv = df_csv.sort_index(axis=1)
@@ -574,34 +789,34 @@ if use_csv:
                 deltas = np.diff(dates).astype('timedelta64[D]').astype(int)
                 avg_delta = np.mean(deltas)
                 if avg_delta <= 2:
-                    span = "日足"
+                    span = t("daily")
                     interval = "1d"
                 elif avg_delta <= 10:
-                    span = "週足"
+                    span = t("weekly")
                     interval = "1wk"
                 else:
-                    span = "月足"
+                    span = t("monthly")
                     interval = "1mo"
                 st.session_state.interval = interval
-                st.info(f"スパンは自動判定されました：**{span}**（平均間隔 {avg_delta:.1f} 日）")
+                st.info(f"{t('span_auto_detected')}：**{span}**（{t('avg_interval')} {avg_delta:.1f} {t('days')}）")
             except Exception as e:
-                st.error(f"スパンの推定中にエラーが発生しました：{e}")
+                st.error(f"{t('error_span_estimation')}：{e}")
                 st.stop()
             # CSVプレビュー表示
             df_csv_display = df_csv.copy()
             try:
                 df_csv_display.columns = [col.strftime('%Y/%m/%d') for col in df_csv_display.columns]
             except Exception as e:
-                st.error(f"列名の日付表示の整形に失敗しました（{e}）．")
+                st.error(f"{t('error_column_date_format')}（{e}）．")
                 st.stop()
-            with st.expander("CSVのプレビューを表示"):
+            with st.expander(t("csv_preview")):
                 st.dataframe(df_csv_display)
             num_csv_tickers = df_csv_display.shape[0]
-            st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_csv_tickers}</strong> 銘柄</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}：<strong>{num_csv_tickers}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
             # 価格データをセッションに保存
             st.session_state.df_csv = df_csv  # 読み込んだ価格（行：銘柄，列：日付）
         except Exception as e:
-            st.error(f"CSVのデータ処理中にエラーが発生しました: {e}")
+            st.error(f"{t('error_csv_processing')}: {e}")
 
 
 # ====銘柄検索入力モード====
@@ -610,9 +825,9 @@ if not use_csv:
     # span及びrf_rate_spanを初期化
     span = None
     rf_rate_span = None
-    
+
     # 銘柄検索機能
-    st.markdown("### 銘柄検索")
+    st.markdown(f"### {t('ticker_search')}")
     
     # 日本銘柄リストを読み込む
     if 'jp_stock_df' not in st.session_state:
@@ -628,21 +843,21 @@ if not use_csv:
     
     # 検索入力
     search_query = normalize_input(st.text_input(
-        "銘柄コードまたは銘柄名を入力",
-        placeholder="例: 7203, トヨタ自動車, AAPL, Apple",
+        t("ticker_search_label"),
+        placeholder=t("ticker_search_placeholder"),
         key="search_input"
     ))
-    
+
     # 為替換算オプション
-    st.checkbox("証券コードの末尾が'.T'以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
+    st.checkbox(t("convert_usd_to_jpy"), key="convert_usd_to_jpy")
     
     # 検索結果の表示
     if search_query:
-        with st.spinner("検索中..."):
+        with st.spinner(t("calculating")):
             search_results = searcher.search_assets(search_query, max_results=20)
-        
+
         if search_results:
-            st.markdown(f"**検索結果: {len(search_results)}件**")
+            st.markdown(f"**{t('search_results')}: {len(search_results)}{t('results_count')}**")
             
             # 検索結果を選択肢として表示
             for i, asset in enumerate(search_results):
@@ -659,22 +874,22 @@ if not use_csv:
                 with col4:
                     # 既に選択済みかチェック
                     is_selected = any(a['symbol'] == asset['symbol'] for a in st.session_state.selected_assets)
-                    
+
                     if not is_selected:
-                        if st.button("追加", key=f"add_{i}_{asset['symbol']}"):
+                        if st.button(t("add_button"), key=f"add_{i}_{asset['symbol']}"):
                             st.session_state.selected_assets.append(asset)
                             st.rerun()
                     else:
-                        st.write("✓ 選択済み")
+                        st.write(t("already_selected"))
         else:
-            st.warning("該当する銘柄が見つかりませんでした．")
+            st.warning(t("no_results"))
     
     # 選択済み銘柄の表示
     if st.session_state.selected_assets:
         st.markdown("---")
-        st.markdown("### 選択中の銘柄リスト")
+        st.markdown(f"### {t('selected_tickers')}")
         num_selected = len(st.session_state.selected_assets)
-        st.markdown(f"<p style='font-size: 16px; color: lightgray;'>分析対象銘柄数：<strong>{num_selected}</strong> 銘柄</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}：<strong>{num_selected}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
         
         for i, asset in enumerate(st.session_state.selected_assets):
             cols = st.columns([2, 4, 2, 1])
@@ -682,51 +897,51 @@ if not use_csv:
             cols[1].write(asset["name"])
             exchange_display = asset.get('exchange', 'N/A')
             cols[2].write(f"{asset['currency']} ({exchange_display})")
-            if cols[3].button("削除", key=f"del_{i}"):
+            if cols[3].button(t("delete_button"), key=f"del_{i}"):
                 st.session_state.selected_assets.pop(i)
                 st.rerun()
-        
-        if st.button("リセット", key="reset", help="すべての選択をクリア", type="secondary"):
+
+        if st.button(t("reset_button"), key="reset", type="secondary"):
             st.session_state.selected_assets = []
             st.session_state.result_data = None
             st.rerun()
-        
+
         # 日付とスパンの設定
         st.markdown("---")
-        st.markdown("### 分析期間の設定")
+        st.markdown(f"### {t('analysis_period')}")
         
         def_date_end = date.today() - timedelta(days=1)
         def_date_start = def_date_end - timedelta(days=365)
-        start_date = st.date_input("開始日", value=def_date_start)
-        end_date = st.date_input("終了日", value=def_date_end)
-        
+        start_date = st.date_input(t("start_date"), value=def_date_start)
+        end_date = st.date_input(t("end_date"), value=def_date_end)
+
         if end_date > date.today():
-            st.error("終了日が未来の日付になっています．正しい終了日を選んでください．")
+            st.error(t("error_future_date"))
             st.stop()
         elif start_date >= end_date:
-            st.error("開始日は終了日より前の日付を選択してください．")
+            st.error(t("error_date_order"))
             st.stop()
-        
-        span = st.radio("スパン（日足・週足・月足）", ["日足", "週足", "月足"])
-        interval_map = {"日足": "1d", "週足": "1wk", "月足": "1mo"}
+
+        span = st.radio(t("span_label"), [t("daily"), t("weekly"), t("monthly")])
+        interval_map = {t("daily"): "1d", t("weekly"): "1wk", t("monthly"): "1mo"}
         interval = interval_map[span]
         
         # 価格データ取得
         symbols = [a["symbol"] for a in st.session_state.selected_assets]
-        
+
         if len(symbols) < 2:
-            st.info("2銘柄以上をリストに追加する必要があります．")
+            st.info(t("error_min_tickers"))
             st.stop()
-        
+
         try:
-            with st.spinner("価格データを取得中..."):
+            with st.spinner(t("calculating")):
                 close_df = fetch_close_prices(symbols, start_date, end_date, interval)
         except ValueError as e:
-            st.error(f"価格データ取得エラー：{e}")
+            st.error(f"{t('error_price_fetch')}：{e}")
             st.stop()
-        
+
         if close_df.empty:
-            st.error("価格データの取得に失敗しました．")
+            st.error(t("error_price_empty"))
             st.stop()
         
         # ソート（念のため）
@@ -744,10 +959,10 @@ if not use_csv:
 # ====最小投資割合と期待利益率の段階数の入力====
 
 st.markdown("---")
-st.markdown("### 分析パラメータの設定")
+st.markdown(f"### {t('analysis_params')}")
 
-min_weight = st.number_input("最小投資割合", min_value=0.0, max_value=0.5, value=0.00, step=0.001, format="%.3f")
-num_steps = st.number_input("期待利益率の段階数", min_value=5, max_value=500, value=50, step=1)
+min_weight = st.number_input(t("min_weight"), min_value=0.0, max_value=0.5, value=0.00, step=0.001, format="%.3f")
+num_steps = st.number_input(t("num_steps"), min_value=5, max_value=500, value=50, step=1)
 
 
 # ====無リスク金利の取得と初期値の決定====
@@ -755,18 +970,21 @@ num_steps = st.number_input("期待利益率の段階数", min_value=5, max_valu
 result = get_latest_jgb_1year_rate()
 if result:  # 取得に成功した場合
     csv_url, latest_date, latest_rate, df = result
-    st.info(f"{latest_date} の短期国債金利は {latest_rate:.3f}% です．\n[財務省]({csv_url})")
+    if st.session_state.language == "ja":
+        st.info(f"{latest_date} {t('jgb_rate_info')} {latest_rate:.3f}% です．\n[財務省]({csv_url})")
+    else:
+        st.info(f"{t('jgb_rate_info')} on {latest_date}: {latest_rate:.3f}%\n[Ministry of Finance]({csv_url})")
     rf_rate_default = latest_rate
 else:  # 取得に失敗した場合
-    st.warning("短期国債金利の取得に失敗しました．")
+    st.warning(t("jgb_rate_failed"))
     rf_rate_default = 0.50  # デフォルト値
 
 # ユーザが任意に設定可能な入力フォーム(%で表示)
 rf_rate = st.number_input(
-    "無リスク資産の年利（%）", 
-    min_value=0.0, max_value=100.0,  
-    value=rf_rate_default, 
-    step=0.001, 
+    t("risk_free_rate_label"),
+    min_value=0.0, max_value=100.0,
+    value=rf_rate_default,
+    step=0.001,
     format="%.3f"
 ) / 100  # 実際の計算では少数を使う
 
@@ -776,14 +994,18 @@ def convert_rf_rate_safe(rf_rate, span):
     年率のリスクフリーレートをスパン（日足・週足・月足）に応じて変換．
     spanが不明な場合はエラーとして処理を停止．
     """
-    if span == "日足":
+    daily_label = t("daily")
+    weekly_label = t("weekly")
+    monthly_label = t("monthly")
+
+    if span == daily_label:
         return rf_rate / 252
-    elif span == "週足":
+    elif span == weekly_label:
         return rf_rate / 52
-    elif span == "月足":
+    elif span == monthly_label:
         return rf_rate / 12
     else:
-        st.error(f"スパンが未定義または不正です（スパン：{span}）．")
+        st.error(f"{t('error_date_not_set')}（{span}）")
         st.stop()
 
 # span(日/週/月)が決まったら，rf_rate(年利)をスパン単位に変換
@@ -794,13 +1016,13 @@ if span:
 # ====比較市場ポートフォリオの選択====
 
 st.markdown("---")
-st.markdown("### 比較市場ポートフォリオの選択")
+st.markdown(f"### {t('market_portfolio')}")
 
 # 市場ポートフォリオ選択
 market_choice = st.radio(
-    "市場ポートフォリオを選択", 
+    t("market_portfolio_label"),
     (
-        "Nikkei 225 (^N225)", 
+        "Nikkei 225 (^N225)",
         "NASDAQ Composite (^IXIC)",
         "S&P 500 (^GSPC)",
         "Dow Jones Industrial Average (^DJI)"
@@ -817,7 +1039,7 @@ elif "S&P 500 (^GSPC)" in market_choice:
 elif "Dow Jones Industrial Average (^DJI)" in market_choice:
     market_ticker = "^DJI"
 else:
-    st.error("無効な市場ポートフォリオが選択されました．")
+    st.error(t("error_invalid_market_portfolio"))
     st.stop()
 
 # 選択結果をSessionStateに保存
@@ -838,24 +1060,24 @@ show_calc_button = (
 
 # 計算ボタンの描画(押下時には run_calc がTrueになる)
 if show_calc_button:
-    run_calc = st.button("計算を実行", key="calc_button", disabled=st.session_state.calculating)
-    
+    run_calc = st.button(t("calc_button"), key="calc_button", disabled=st.session_state.calculating)
+
     # 計算開始時の準備(calculatingフラグを立て，画面上に「計算中です．」と表示)
     if run_calc:
         st.session_state.calculating = True
-        with st.spinner("計算中です..."):
+        with st.spinner(t("calculating")):
             use_csv = st.session_state.get("use_csv", False)
             if use_csv:  # CSV入力モード
                 df = st.session_state.get("df_csv", None)
                 if df is None:
-                    st.error("CSVファイルのデータが見つかりません．")
+                    st.error(t("error_csv_no_data"))
                     st.stop()
                 # close_dfを定義（行＝日付，列＝銘柄）
                 close_df = df.T
                 try:
                     log_returns = calculate_log_returns(df, axis=1)  # df_csvからログリターン計算(axis=1で行方向に時系列計算)
                 except Exception as e:
-                    st.error(f"ログリターンの計算に失敗しました：{e}")
+                    st.error(f"{t('error_log_return')}：{e}")
                     st.stop()
                 # 証券コードリスト
                 tickers = log_returns.index.tolist()
@@ -863,16 +1085,16 @@ if show_calc_button:
             else:  # 銘柄検索入力モード
                 close_df = st.session_state.get("close_df", None)
                 if close_df is None:
-                    st.error("価格データが見つかりません．")
+                    st.error(t("error_no_price_data"))
                     st.stop()
                 try:
                     log_returns = calculate_log_returns(close_df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
                 except Exception as e:
-                    st.error(f"ログリターンの計算に失敗しました：{e}")
+                    st.error(f"{t('error_log_return')}：{e}")
                     st.stop()
                 # 有効な銘柄数チェック（2銘柄未満なら中断）
                 if log_returns.shape[1] < 2:
-                    st.error("有効なデータを持つ銘柄が2つ以上必要です．期間を見直してください．")
+                    st.error(t("error_valid_tickers"))
                     st.session_state.calculating = False
                     st.stop()
                 # 日数のカウント（有効な共通データ行数）
@@ -880,15 +1102,15 @@ if show_calc_button:
                 # 想定されるスパン単位の日数
                 expected_days = (end_date - start_date).days
                 expected_count = {
-                    "日足": expected_days,
-                    "週足": expected_days // 7,
-                    "月足": expected_days // 30
+                    t("daily"): expected_days,
+                    t("weekly"): expected_days // 7,
+                    t("monthly"): expected_days // 30
                 }[span]
                 # 警告表示
                 if valid_days < expected_count * 1:
                     st.info(
-                        f"指定された期間（{expected_count}{span}）に対し，"
-                        f"共通の有効価格データが存在するのは {valid_days}{span} のみです．"
+                        f"{t('info_common_data')}{expected_count}{span}{t('info_common_data_only')}"
+                        f"{valid_days}{span}{t('info_common_data_available')}"
                     )
                 # 証券コードリスト
                 tickers = log_returns.columns.tolist()
@@ -905,11 +1127,11 @@ if show_calc_button:
             # 最小投資割合のバリデーションチェック(全銘柄均等以上の最小割合は許容しない)
             N = len(tickers)
             if min_weight >= (1 / N):
-                st.error(f"選択された銘柄数に対して最小投資割合が大きすぎます（{1/N:.4f} 未満である必要があります）．")
+                st.error(f"{t('error_min_weight_large')} {1/N:.4f}）．")
                 st.session_state.calculating = False
                 st.stop()
             if min_weight < 0 or min_weight >= 0.5:
-                st.error("最小投資割合は0以上0.5未満である必要があります．")
+                st.error(t("error_min_weight_range"))
                 st.session_state.calculating = False
                 st.stop()
             
@@ -973,29 +1195,29 @@ if show_calc_button:
             
             # 最適化結果が1点も得られなかった場合はエラー終了
             if len(frontier_vol) == 0:
-                st.error("最小分散フロンティアの計算に失敗しました．銘柄数・期間・最小投資割合を見直してください．")
+                st.error(t("error_mvf_failed"))
                 st.stop()
-            
+
             # start_date,end_date,intervalの情報を取得
             start_date = st.session_state.get("start_date", None)
             end_date = st.session_state.get("end_date", None)
             interval = st.session_state.get("interval", None)
             if None in (start_date, end_date, interval):
-                st.error("日付が正しく設定されていません．")
+                st.error(t("error_date_not_set"))
                 st.stop()
-            
+
             # yfinanceで市場ポートフォリオデータ取得
             market_ticker = st.session_state.get("market_ticker", None)
             try:
                 market_data = yf.download(market_ticker, start=start_date, end=end_date, interval=interval, progress=False)
                 # ダウンロードの失敗チェック
                 if market_data is None or market_data.empty:
-                    st.error(f"市場ポートフォリオ {market_ticker} のデータ取得に失敗しました．")
+                    st.error(f"{t('error_market_data_failed')} {market_ticker}")
                     st.stop()
                 # 市場リターンを計算
                 market_returns = np.log(market_data["Close"] / market_data["Close"].shift(1)).dropna()
             except Exception as e:
-                st.error(f"市場データ取得中にエラーが発生しました：{e}")
+                st.error(f"{t('error_market_data_fetch')}：{e}")
                 st.stop()
             
             # β値の計算
@@ -1032,19 +1254,19 @@ if show_calc_button:
 
 if st.session_state.result_data:
     st.markdown("---")
-    st.markdown("## 分析結果")
+    st.markdown(f"## {t('analysis_results')}")
     
     data = st.session_state.result_data
     
     # 価格時系列の表示
     if not use_csv:
         if close_df is not None and not close_df.empty:
-            with st.expander("価格の時系列（終値）を表示"):
+            with st.expander(t("price_time_series")):
                 close_df_display = close_df.copy()
                 close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
                 st.dataframe(close_df_display.round(2), use_container_width=True)
         else:
-            st.error("価格データが存在しません．")
+            st.error(t("error_no_price_data"))
             st.stop()
     
     # 為替レート（USD/JPY）の表示
@@ -1061,7 +1283,7 @@ if st.session_state.result_data:
             # 為替CSVデータをセッションに一時保存（DL後も再描画維持）
             st.session_state["fx_display_df"] = fx_df.to_csv(index=True).encode("utf-8")
             # タイトル
-            with st.expander("為替レート（USD/JPY）の表示"):
+            with st.expander(t("fx_rate_display")):
                 # Plotlyグラフ表示（Y軸の下限調整あり）
                 fig_fx = go.Figure()
                 fig_fx.add_trace(go.Scatter(
@@ -1073,8 +1295,8 @@ if st.session_state.result_data:
                     marker=dict(size=4)
                 ))
                 fig_fx.update_layout(
-                    xaxis_title="日付",
-                    yaxis_title="為替レート（円）",
+                    xaxis_title=t("date_label"),
+                    yaxis_title=t("fx_rate_label"),
                     yaxis=dict(range=[fx_trimmed.min() * 0.995, fx_trimmed.max() * 1.005]),
                     plot_bgcolor='black',
                     paper_bgcolor='black',
@@ -1085,25 +1307,25 @@ if st.session_state.result_data:
                 st.plotly_chart(fig_fx, use_container_width=True)
                 # CSVダウンロードボタン
                 st.download_button(
-                    label="為替レートをCSVとしてダウンロード",
+                    label=t("fx_rate_download"),
                     data=st.session_state["fx_display_df"],
                     file_name="usd_jpy_rates.csv",
                     mime="text/csv",
                 )
         except Exception as e:
-            st.warning(f"為替レートの表示に失敗しました：{e}")
+            st.warning(f"{t('error_fx_display')}：{e}")
     
     # 銘柄ごとのリスク(log_returns標準偏差)・リターン(log_returns平均)情報を表示
-    with st.expander("各銘柄の標準偏差と期待利益率を表示"):
+    with st.expander(t("std_dev_return")):
         df_mean = pd.DataFrame({
-            "証券コード": data["tickers"],
-            "標準偏差": data["std_devs"],
-            "期待利益率": data["mean_returns"]
+            t("ticker_code"): data["tickers"],
+            t("std_dev"): data["std_devs"],
+            t("expected_return"): data["mean_returns"]
         })
-        st.dataframe(df_mean.style.format({"標準偏差": "{:.5f}", "期待利益率": "{:.5f}"}), hide_index=True)
+        st.dataframe(df_mean.style.format({t("std_dev"): "{:.5f}", t("expected_return"): "{:.5f}"}), hide_index=True)
     
     # 相関行列の可視化（ヒートマップ）
-    with st.expander("銘柄間の相関行列（ヒートマップ）を表示"):
+    with st.expander(t("correlation_matrix")):
         # ログリターンをセッションから取得
         log_returns = st.session_state.get("log_returns", None)
         try:
@@ -1116,7 +1338,7 @@ if st.session_state.result_data:
                 corr_matrix = st.session_state["corr_matrix"]
                 tickers = corr_matrix.columns
             else:
-                st.warning("相関行列を表示するには先に価格データの取得が必要です．")
+                st.warning(t("warning_correlation_data"))
                 raise StopIteration
         
             corr_matrix = log_returns.corr()
@@ -1137,18 +1359,18 @@ if st.session_state.result_data:
             # 相関係数のCSVダウンロードボタン
             st.session_state["corr_matrix_csv"] = corr_matrix.round(5).to_csv(index=True, encoding="utf-8-sig")
             st.download_button(
-                label="相関係数をCSVとしてダウンロード",
+                label=t("correlation_download"),
                 data=st.session_state["corr_matrix_csv"],
                 file_name="correlation_matrix.csv",
                 mime="text/csv"
             )
         except Exception as e:
-            st.error(f"相関行列の表示中にエラーが発生しました: {e}")
+            st.error(f"{t('error_correlation_display')}: {e}")
 
     # 最小分散フロンティアと資本市場線の表示
-    with st.expander("最小分散フロンティア(MVF)と資本市場線(CML)を表示"):
+    with st.expander(t("mvf_cml_display")):
         if data["frontier_vol"] is None or len(data["frontier_vol"]) == 0:
-            st.error("最小分散フロンティアが正常に計算できませんでした．")
+            st.error(t("error_mvf_not_calculated"))
         else:
             # 最小分散点のインデックス
             min_index = np.nanargmin(data["frontier_vol"])
@@ -1220,8 +1442,8 @@ if st.session_state.result_data:
             
             # レイアウト設定
             fig.update_layout(
-                xaxis=dict(title="標準偏差", showgrid=False),
-                yaxis=dict(title="期待利益率", range=[min(rf_rate_span * 0.9, min(data["target_returns"]) * 0.9),
+                xaxis=dict(title=t("std_dev"), showgrid=False),
+                yaxis=dict(title=t("expected_return"), range=[min(rf_rate_span * 0.9, min(data["target_returns"]) * 0.9),
                                                             max(data["target_returns"]) * 1.1], showgrid=False),
                 plot_bgcolor="black",
                 paper_bgcolor="black",
@@ -1229,25 +1451,25 @@ if st.session_state.result_data:
                 legend=dict(x=1.02, y=1, borderwidth=0),
                 margin=dict(r=150)
             )
-            
+
             # 表示
             st.plotly_chart(fig, use_container_width=True)
-            
+
             # 各期待利益率における標準偏差と投資割合をCSVとしてダウンロード
             weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
-            weight_df.insert(0, "標準偏差", data["frontier_vol"])
-            weight_df.insert(1, "期待利益率", data["target_returns"])
-            weight_df = weight_df.sort_values(by="期待利益率", ascending=False)
+            weight_df.insert(0, t("std_dev"), data["frontier_vol"])
+            weight_df.insert(1, t("expected_return"), data["target_returns"])
+            weight_df = weight_df.sort_values(by=t("expected_return"), ascending=False)
             st.session_state["frontier_weights_csv"] = weight_df.to_csv(index=False).encode("utf-8-sig")
             st.download_button(
-                label="各期待利益率における標準偏差と投資割合をCSVとしてダウンロード",
+                label=t("mvf_cml_download"),
                 data=st.session_state["frontier_weights_csv"],
                 file_name="frontier_weights.csv",
                 mime="text/csv"
             )
     
     # 証券市場線(SML)を表示
-    with st.expander("証券市場線(SML)を表示"):
+    with st.expander(t("sml_display")):
         # データ
         beta_vals = np.array(list(data["betas"].values()))
         expected_returns = np.array([data["mean_returns"][data["tickers"].index(code)] for code in data["betas"].keys()])
@@ -1255,7 +1477,7 @@ if st.session_state.result_data:
         rm = data["market_return_mean"]
         x_vals = np.linspace(0, max(2.5, beta_vals.max() * 1.2), 100)
         sml_y = rf + (rm - rf) * x_vals
-        
+
         # SMLライン
         sml_line = go.Scatter(
             x=x_vals,
@@ -1264,19 +1486,20 @@ if st.session_state.result_data:
             name=f'SML ({st.session_state.market_ticker})',
             line=dict(width=1, color='gold')
         )
-        
+
         # 各銘柄の点
+        tickers_label = t("tickers") if st.session_state.language == "ja" else "Tickers"
         stock_points = go.Scatter(
             x=beta_vals,
             y=expected_returns,
             mode='markers+text',
-            name='銘柄',
+            name=tickers_label,
             text=list(data["betas"].keys()),
             textposition="top center",
             textfont=dict(size=10, color='lightgray'),
             marker=dict(size=5, color='lightblue')
         )
-        
+
         # 無リスク利子率の横線
         rf_line = go.Scatter(
             x=[0, max(x_vals)],
@@ -1285,11 +1508,11 @@ if st.session_state.result_data:
             name=f'RFR ({rf:.3%})',
             line=dict(color="pink", dash="dot", width=1)
         )
-        
+
         # レイアウト
         layout = go.Layout(
-            xaxis=dict(title='β', showgrid=False),
-            yaxis=dict(title='期待利益率', showgrid=False),
+            xaxis=dict(title=t("beta"), showgrid=False),
+            yaxis=dict(title=t("expected_return"), showgrid=False),
             plot_bgcolor='black',
             paper_bgcolor='black',
             font=dict(color='white', family='Meiryo'),
@@ -1300,15 +1523,15 @@ if st.session_state.result_data:
         
         # 表示
         st.plotly_chart(fig, use_container_width=True)
-        
+
         # 各銘柄のβ値をCSVとしてダウンロード
         beta_df = pd.DataFrame({
-            "証券コード": list(data["betas"].keys()),
-            "β値": list(data["betas"].values())
+            t("ticker_code"): list(data["betas"].keys()),
+            t("beta_value"): list(data["betas"].values())
         })
         st.session_state["beta_csv"] = beta_df.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label="各銘柄のβ値をCSVとしてダウンロード",
+            label=t("beta_download"),
             data=st.session_state["beta_csv"],
             file_name="beta.csv",
             mime="text/csv"
@@ -1316,10 +1539,9 @@ if st.session_state.result_data:
 
 
 # コメント
-st.markdown("""
+st.markdown(f"""
     <hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
     <div style='text-align: left; font-size: 0.8rem; color: gray;'>
-        本アプリは学習目的で作成されたものであり，投資判断への利用を想定したものではありません．
-        <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
+        {t("disclaimer")}
     </div>
 """, unsafe_allow_html=True)
