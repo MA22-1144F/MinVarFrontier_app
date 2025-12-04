@@ -10,9 +10,9 @@
 - 投資割合に制約を加えた最小分散フロンティアの作成
 - 期待利益率，標準偏差，投資割合をCSVとして出力可能
 
-<img src="images/最小分散フロンティア.png" alt="最小分散フロンティアイメージ" width="300">
-<img src="images/証券市場線.png" alt="証券市場線イメージ" width="300">
-<img src="images/相関係数.png" alt="相関係数イメージ" width="300">
+<img src="images/最小分散フロンティア.png" alt="最小分散フロンティアイメージ" width="600">
+<img src="images/証券市場線.png" alt="証券市場線イメージ" width="600">
+<img src="images/相関係数.png" alt="相関係数イメージ" width="600">
 
 ## CSV形式テンプレート
 
