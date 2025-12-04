@@ -125,7 +125,15 @@ LANGUAGES = {
         "error_invalid_market_portfolio": "Invalid market portfolio selected.",
         "date_label": "Date",
         "exchange_rate": "Exchange Rate",
-        "language_select": "Language"
+        "language_select": "Language",
+        "warning_jp_stock_list_failed": "Failed to retrieve Japanese stock list",
+        "warning_yahoo_search_error": "Yahoo Finance search error",
+        "warning_jp_stock_search_error": "Japanese stock search error",
+        "warning_data_fetch_error": "Data fetch error for",
+        "warning_result_fetch_error": "Result fetch error for",
+        "warning_fx_conversion_failed": "Failed to convert currency",
+        "error_no_valid_price_data": "Failed to retrieve any valid price data.",
+        "error_no_valid_tickers": "No valid tickers provided."
     },
     "ja": {
         "page_title": "最小分散フロンティアの計算",
@@ -217,7 +225,15 @@ LANGUAGES = {
         "error_invalid_market_portfolio": "無効な市場ポートフォリオが選択されました．",
         "date_label": "日付",
         "exchange_rate": "為替レート",
-        "language_select": "言語"
+        "language_select": "言語",
+        "warning_jp_stock_list_failed": "日本銘柄リストの取得に失敗しました",
+        "warning_yahoo_search_error": "Yahoo Finance検索エラー",
+        "warning_jp_stock_search_error": "日本銘柄検索エラー",
+        "warning_data_fetch_error": "のデータ取得エラー",
+        "warning_result_fetch_error": "の結果取得エラー",
+        "warning_fx_conversion_failed": "為替換算に失敗しました",
+        "error_no_valid_price_data": "有効な価格データが一つも取得できませんでした．",
+        "error_no_valid_tickers": "有効なティッカーが1つもありません．"
     }
 }
 
@@ -358,7 +374,7 @@ def load_japan_stock_list():
         return df
     except Exception as e:
         # エラー発生時は警告表示し，Noneを返す
-        st.warning(f"日本銘柄リストの取得に失敗しました: {e}")
+        st.warning(f"{t('warning_jp_stock_list_failed')}: {e}")
         return None
 
 
@@ -401,7 +417,7 @@ class AssetSearcher:
                     if not any(a['symbol'] == asset['symbol'] for a in assets):
                         assets.append(asset)
         except Exception as e:
-            st.warning(f"Yahoo Finance検索エラー: {e}")
+            st.warning(f"{t('warning_yahoo_search_error')}: {e}")
         
         # 最大結果数に制限
         return assets[:max_results]
@@ -433,9 +449,9 @@ class AssetSearcher:
                     'currency': 'JPY',
                     'type': 'EQUITY'
                 })
-        
+
         except Exception as e:
-            st.warning(f"日本銘柄検索エラー: {e}")
+            st.warning(f"{t('warning_jp_stock_search_error')}: {e}")
         
         return results
     
@@ -641,9 +657,9 @@ def fetch_single_asset_data(args):
                 'data': pd.Series(dtype=float),
                 'success': False
             }
-    
+
     except Exception as e:
-        st.warning(f"{symbol} のデータ取得エラー: {e}")
+        st.warning(f"{t('warning_data_fetch_error')} {symbol}: {e}")
         return {
             'symbol': symbol,
             'data': pd.Series(dtype=float),
@@ -657,7 +673,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
     与えられた証券コードリストに対して，指定期間・頻度の調整後終値を並列取得する．
     """
     if not symbols:
-        raise ValueError("有効なティッカーが1つもありません．")
+        raise ValueError(t("error_no_valid_tickers"))
     
     # 並列処理用の引数リストを作成
     args_list = [(symbol, start_date, end_date, interval) for symbol in symbols]
@@ -682,10 +698,10 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
                 if result['success'] and not result['data'].empty:
                     price_data[result['symbol']] = result['data']
             except Exception as e:
-                st.warning(f"{symbol} の結果取得エラー: {e}")
-    
+                st.warning(f"{t('warning_result_fetch_error')} {symbol}: {e}")
+
     if not price_data:
-        raise ValueError("有効な価格データが一つも取得できませんでした．")
+        raise ValueError(t("error_no_valid_price_data"))
     
     # DataFrameに統合
     df_merged = pd.DataFrame(price_data).sort_index()
@@ -708,7 +724,7 @@ def fetch_close_prices(symbols, start_date, end_date, interval):
                     if len(aligned_fx) == len(df_merged.index):
                         df_merged[symbol] = df_merged[symbol] * aligned_fx
         except Exception as e:
-            st.warning(f"為替換算に失敗しました: {e}")
+            st.warning(f"{t('warning_fx_conversion_failed')}: {e}")
     
     return df_merged
 
