@@ -574,13 +574,13 @@ if use_csv:
                 deltas = np.diff(dates).astype('timedelta64[D]').astype(int)
                 avg_delta = np.mean(deltas)
                 if avg_delta <= 2:
-                    span = "日間"
+                    span = "日足"
                     interval = "1d"
                 elif avg_delta <= 10:
-                    span = "週間"
+                    span = "週足"
                     interval = "1wk"
                 else:
-                    span = "月間"
+                    span = "月足"
                     interval = "1mo"
                 st.session_state.interval = interval
                 st.info(f"スパンは自動判定されました：**{span}**（平均間隔 {avg_delta:.1f} 日）")
@@ -634,7 +634,7 @@ if not use_csv:
     ))
     
     # 為替換算オプション
-    st.checkbox("証券コードの末尾が '.T' 以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
+    st.checkbox("証券コードの末尾が'.T'以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
     
     # 検索結果の表示
     if search_query:
@@ -707,8 +707,8 @@ if not use_csv:
             st.error("開始日は終了日より前の日付を選択してください．")
             st.stop()
         
-        span = st.radio("スパン（日間・週間・月間）", ["日間", "週間", "月間"])
-        interval_map = {"日間": "1d", "週間": "1wk", "月間": "1mo"}
+        span = st.radio("スパン（日足・週足・月足）", ["日足", "週足", "月足"])
+        interval_map = {"日足": "1d", "週足": "1wk", "月足": "1mo"}
         interval = interval_map[span]
         
         # 価格データ取得
@@ -773,14 +773,14 @@ rf_rate = st.number_input(
 # rf_rate(年利)をスパン単位に変換（定義のみ）
 def convert_rf_rate_safe(rf_rate, span):
     """
-    年率のリスクフリーレートをスパン（日間・週間・月間）に応じて変換．
+    年率のリスクフリーレートをスパン（日足・週足・月足）に応じて変換．
     spanが不明な場合はエラーとして処理を停止．
     """
-    if span == "日間":
+    if span == "日足":
         return rf_rate / 252
-    elif span == "週間":
+    elif span == "週足":
         return rf_rate / 52
-    elif span == "月間":
+    elif span == "月足":
         return rf_rate / 12
     else:
         st.error(f"スパンが未定義または不正です（スパン：{span}）．")
@@ -880,9 +880,9 @@ if show_calc_button:
                 # 想定されるスパン単位の日数
                 expected_days = (end_date - start_date).days
                 expected_count = {
-                    "日間": expected_days,
-                    "週間": expected_days // 7,
-                    "月間": expected_days // 30
+                    "日足": expected_days,
+                    "週足": expected_days // 7,
+                    "月足": expected_days // 30
                 }[span]
                 # 警告表示
                 if valid_days < expected_count * 1:
@@ -1323,4 +1323,3 @@ st.markdown("""
         <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
     </div>
 """, unsafe_allow_html=True)
-
