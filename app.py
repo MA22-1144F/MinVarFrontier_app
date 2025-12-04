@@ -634,7 +634,7 @@ if not use_csv:
     ))
     
     # 為替換算オプション
-    st.checkbox("証券コードの末尾が'.T'以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
+    st.checkbox("証券コードの末尾が '.T' 以外の銘柄をドル円換算して分析する", key="convert_usd_to_jpy")
     
     # 検索結果の表示
     if search_query:
@@ -1323,3 +1323,4 @@ st.markdown("""
         <br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．
     </div>
 """, unsafe_allow_html=True)
+
