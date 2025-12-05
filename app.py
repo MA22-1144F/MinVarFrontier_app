@@ -1,5 +1,9 @@
-# ====必要なライブラリのインポート====
+"""
+最小分散フロンティア計算アプリケーション
+Minimum Variance Frontier Calculator
+"""
 
+# ====必要なライブラリのインポート====
 # streamlit(WebアプリのUI作成)
 import streamlit as st
 # データ操作ライブラリ(表形式データの処理)
@@ -11,30 +15,26 @@ import yfinance as yf
 import unicodedata
 # Webデータ取得関連
 import requests
-import re
-from bs4 import BeautifulSoup
+# 時間操作のモジュール
+import time
+# CSVテンプレート生成などに使用
+import io
+# 並列実行用
+import concurrent.futures
+# メモリ上にテキストストリームを作成
 from io import StringIO
 # 数学・統計処理(最小分散フロンティアの計算)
 from scipy.optimize import minimize
 # 日付操作(前営業日の取得など)
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 # プロット用ライブラリ
 import matplotlib.pyplot as plt
 # グラフ描画用ライブラリ
 import plotly.graph_objs as go
-# CSVテンプレート生成などに使用
-import io
-# 日本の祝日判定ライブラリ(jpholiday)
-import jpholiday
-# 時間操作のモジュール
-import time
-# 並列処理用
-import concurrent.futures
 
 # ====言語設定====
-
 # 言語辞書
-LANGUAGES = {
+LANG = {
     "en": {
         "page_title": "Minimum Variance Frontier Calculation",
         "app_title": "Minimum Variance Frontier Calculation",
@@ -46,7 +46,7 @@ LANGUAGES = {
         "ticker_search_label": "Enter ticker code or name",
         "convert_usd_to_jpy": "Convert tickers not ending with '.T' from USD to JPY for analysis",
         "search_results": "Search Results",
-        "results_count": "件",
+        "results_count": " results",
         "add_button": "Add",
         "already_selected": "✓ Selected",
         "delete_button": "Delete",
@@ -72,7 +72,7 @@ LANGUAGES = {
         "min_weight": "Minimum Investment Ratio",
         "num_steps": "Number of Expected Return Steps",
         "risk_free_rate_label": "Annual Rate of Risk-Free Asset (%)",
-        "jgb_rate_info": "Short-term JGB rate",
+        "jgb_rate_info": "Short-term JGB rate on",
         "jgb_rate_failed": "Failed to retrieve short-term JGB rate.",
         "market_portfolio": "Market Portfolio Selection",
         "market_portfolio_label": "Select Market Portfolio",
@@ -95,7 +95,7 @@ LANGUAGES = {
         "beta": "β",
         "beta_download": "Download β Values for Each Ticker as CSV",
         "beta_value": "β Value",
-        "disclaimer": "This app is created for educational purposes and is not intended for investment decisions.<br>The developer assumes no responsibility for any damages arising from the use of this app.",
+        "disclaimer": "This app is for educational purposes only and not intended for investment decisions.<br>The developer assumes no responsibility for any damages arising from use of this app.",
         "error_future_date": "End date is in the future. Please select a valid end date.",
         "error_date_order": "Start date must be earlier than end date.",
         "error_min_tickers": "You need to add at least 2 tickers to the list.",
@@ -105,10 +105,8 @@ LANGUAGES = {
         "error_csv_processing": "Error occurred during CSV data processing",
         "error_log_return": "Failed to calculate log returns",
         "error_valid_tickers": "At least 2 tickers with valid data are required. Please review the period.",
-        "info_common_data": "For the specified period",
-        "info_common_data_only": "only",
-        "info_common_data_available": "of common valid price data is available.",
-        "error_min_weight_large": "Minimum investment ratio is too large for the selected number of tickers (must be less than",
+        "info_common_data": "For the specified period ({expected} {span}), only {valid} {span} of common valid price data is available.",
+        "error_min_weight_large": "Minimum investment ratio is too large for the selected number of tickers (must be less than {limit:.4f}).",
         "error_min_weight_range": "Minimum investment ratio must be between 0 and 0.5.",
         "error_mvf_failed": "Failed to calculate minimum variance frontier. Please review the number of tickers, period, and minimum investment ratio.",
         "error_date_not_set": "Dates are not set correctly.",
@@ -121,19 +119,17 @@ LANGUAGES = {
         "warning_correlation_data": "Price data must be fetched first to display correlation matrix.",
         "error_csv_no_data": "CSV file data not found.",
         "error_span_estimation": "Error occurred during span estimation",
-        "error_column_date_format": "Failed to format column names to date display",
         "error_invalid_market_portfolio": "Invalid market portfolio selected.",
         "date_label": "Date",
         "exchange_rate": "Exchange Rate",
         "language_select": "Language",
         "warning_jp_stock_list_failed": "Failed to retrieve Japanese stock list",
-        "warning_yahoo_search_error": "Yahoo Finance search error",
-        "warning_jp_stock_search_error": "Japanese stock search error",
+        "warning_search_error": "Search error",
         "warning_data_fetch_error": "Data fetch error for",
-        "warning_result_fetch_error": "Result fetch error for",
         "warning_fx_conversion_failed": "Failed to convert currency",
         "error_no_valid_price_data": "Failed to retrieve any valid price data.",
-        "error_no_valid_tickers": "No valid tickers provided."
+        "error_no_valid_tickers": "No valid tickers provided.",
+        "mof_source": "Ministry of Finance",
     },
     "ja": {
         "page_title": "最小分散フロンティアの計算",
@@ -195,7 +191,7 @@ LANGUAGES = {
         "beta": "β",
         "beta_download": "各銘柄のβ値をCSVとしてダウンロード",
         "beta_value": "β値",
-        "disclaimer": "本アプリは学習目的で作成されたものであり，投資判断への利用を想定したものではありません．<br> 本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．",
+        "disclaimer": "本アプリは学習目的で作成されたものであり，投資判断への利用を想定したものではありません．<br>本アプリの利用によって生じたいかなる損害についても開発者は責任を負いかねます．",
         "error_future_date": "終了日が未来の日付になっています．正しい終了日を選んでください．",
         "error_date_order": "開始日は終了日より前の日付を選択してください．",
         "error_min_tickers": "2銘柄以上をリストに追加する必要があります．",
@@ -205,14 +201,12 @@ LANGUAGES = {
         "error_csv_processing": "CSVのデータ処理中にエラーが発生しました",
         "error_log_return": "ログリターンの計算に失敗しました",
         "error_valid_tickers": "有効なデータを持つ銘柄が2つ以上必要です．期間を見直してください．",
-        "info_common_data": "指定された期間（",
-        "info_common_data_only": "）に対し，共通の有効価格データが存在するのは ",
-        "info_common_data_available": " のみです．",
-        "error_min_weight_large": "選択された銘柄数に対して最小投資割合が大きすぎます（",
+        "info_common_data": "指定された期間（{expected}{span}）に対し，共通の有効価格データが存在するのは{valid}{span}のみです．",
+        "error_min_weight_large": "選択された銘柄数に対して最小投資割合が大きすぎます（{limit:.4f}未満である必要があります）．",
         "error_min_weight_range": "最小投資割合は0以上0.5未満である必要があります．",
         "error_mvf_failed": "最小分散フロンティアの計算に失敗しました．銘柄数・期間・最小投資割合を見直してください．",
         "error_date_not_set": "日付が正しく設定されていません．",
-        "error_market_data_failed": "市場ポートフォリオ",
+        "error_market_data_failed": "市場ポートフォリオのデータ取得に失敗しました：",
         "error_market_data_fetch": "市場データ取得中にエラーが発生しました",
         "error_no_price_data": "価格データが存在しません．",
         "error_fx_display": "為替レートの表示に失敗しました",
@@ -220,411 +214,159 @@ LANGUAGES = {
         "error_mvf_not_calculated": "最小分散フロンティアが正常に計算できませんでした．",
         "warning_correlation_data": "相関行列を表示するには先に価格データの取得が必要です．",
         "error_csv_no_data": "CSVファイルのデータが見つかりません．",
-        "error_span_estimation": "スパンの推定中にエラーが発生しました",
-        "error_column_date_format": "列名の日付表示の整形に失敗しました",
+        "error_span_estimation": "スパンの推定中にエラーが発生しました．",
         "error_invalid_market_portfolio": "無効な市場ポートフォリオが選択されました．",
         "date_label": "日付",
         "exchange_rate": "為替レート",
         "language_select": "言語",
         "warning_jp_stock_list_failed": "日本銘柄リストの取得に失敗しました",
-        "warning_yahoo_search_error": "Yahoo Finance検索エラー",
-        "warning_jp_stock_search_error": "日本銘柄検索エラー",
+        "warning_search_error": "検索エラー",
         "warning_data_fetch_error": "のデータ取得エラー",
-        "warning_result_fetch_error": "の結果取得エラー",
         "warning_fx_conversion_failed": "為替換算に失敗しました",
         "error_no_valid_price_data": "有効な価格データが一つも取得できませんでした．",
-        "error_no_valid_tickers": "有効なティッカーが1つもありません．"
+        "error_no_valid_tickers": "有効なティッカーが1つもありません．",
+        "mof_source": "財務省",
     }
 }
 
-# ====初期化====
+# ====ページ設定====
+st.set_page_config(page_title="MVF Calculator", layout="wide")
 
-_data = None  # 終値のDaraFrame
-rf_rate_span = None  # 無リスク利子率(スパン単位換算値)
-
-# ====ページ設定とカスタムスタイル====
-
-# Webアプリのタイトルとレイアウト方向を設定
-st.set_page_config(
-    page_title="最小分散フロンティアの計算",  # ブラウザのタブに表示されるタイトル
-    layout="wide"  # 表示の中央寄せ
-)
-# アプリの背景やボタン等の見た目をCSSで変更
 st.markdown("""
-    <style>
-    .block-container {
-        background-color: #000000;  /* 背景を黒に */
-        color: #ffffff;  /* 文字色を白に */
-        font-family: Meiryo, sans-serif;  /* メイリオフォントを使用 */
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-        padding-top: 1.5rem !important;
-        padding-bottom: 1.5rem !important;
-        max-width: 100% !important;
-    }
-    /* ボタンの見た目とレイアウト調整 */
-    div.stButton > button:first-child {
-        width: 100% !important;
-        text-align: center !important;
-    }
-    .template-button-container {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: -2rem;
-        margin-bottom: 1rem;
-    }
-    .small-button button {
-        font-size: 0.75rem !important;
-        padding: 0.2rem 0.5rem !important;
-    }
-    /* 不要なヘッダー・フッター・デプロイボタン等を非表示 */
-    header, footer, .stActionButton, .stDeployButton, .st-emotion-cache-13ln4jf, .st-emotion-cache-1avcm0n {
-        display: none !important;
-    }
-    </style>
+<style>
+.block-container {
+    background-color: #000;
+    color: #fff;
+    font-family: Meiryo, sans-serif;
+    padding: 1.5rem 2rem !important;
+    max-width: 100% !important;
+}
+div.stButton > button:first-child {
+    width: 100% !important;
+    text-align: center !important;
+}
+header, footer, .stActionButton, .stDeployButton {
+    display: none !important;
+}
+.custom-title {
+    text-align: center;
+    font-size: 40px;
+    margin-bottom: 1rem;
+}
+@media screen and (max-width: 600px) {
+    .custom-title { font-size: 25px; }
+}
+</style>
 """, unsafe_allow_html=True)
 
+# ====セッションステート初期化====
+DEFAULTS = {
+    'language': 'en',
+    'calculating': False,
+    'result_data': None,
+    'selected_assets': [],
+    'previous_input_mode': None,
+    'convert_usd_to_jpy': False,
+}
+for key, val in DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
-# ====セッションステートの初期化====
-
-# Streamlitアプリでは，セッションごとに変数を保持できる「st.session_state」を使って状態管理を行う．
-# 各変数が未定義の場合に初期値を設定する．
-if 'language' not in st.session_state:
-    st.session_state.language = 'en'  # デフォルト言語は英語
-if 'calculating' not in st.session_state:
-    st.session_state.calculating = False  # 計算処理中であることを表すフラグ
-if 'result_data' not in st.session_state:
-    st.session_state.result_data = None  # 計算結果を格納する変数
-if 'selected_assets' not in st.session_state:
-    st.session_state.selected_assets = []  # ユーザが選択した銘柄のリスト
-
-# 言語取得関数
+# ====ユーティリティ関数====
 def t(key):
-    """言語辞書からテキストを取得"""
-    return LANGUAGES[st.session_state.language].get(key, key)
+    """言語辞書からテキスト取得"""
+    return LANG[st.session_state.language].get(key, key)
 
+def normalize_input(text):
+    """全角→半角変換"""
+    return unicodedata.normalize('NFKC', text)
 
-# ====財務省から短期国債金利を取得する関数====
+def format_date(dt):
+    """日付をYYYY/MM/DD形式に変換"""
+    return dt.strftime('%Y/%m/%d') if hasattr(dt, 'strftime') else str(dt)
 
-def get_latest_jgb_1year_rate():
-    """財務省から短期国債金利の最新データを取得"""
+# ====データ取得関数====
+def get_jgb_rate():
+    """財務省から短期国債金利取得"""
     try:
-        csv_url = "https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        url = "https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
         
-        csv_response = requests.get(csv_url, headers=headers, timeout=10)
-        csv_response.raise_for_status()
-        
-        # 複数のエンコーディングを試行
-        for encoding in ['shift_jis', 'utf-8', 'cp932']:
+        for enc in ['shift_jis', 'utf-8', 'cp932']:
             try:
-                csv_content = csv_response.content.decode(encoding)
-                df = pd.read_csv(StringIO(csv_content), header=None)
+                df = pd.read_csv(StringIO(resp.content.decode(enc)), header=None)
                 break
-            except (UnicodeDecodeError, pd.errors.ParserError):
+            except:
                 continue
         else:
             return None
         
-        # 有効なデータを持つ行を抽出
-        valid_rows = df[df.iloc[:, 1].notna()]
-        if valid_rows.empty:
+        valid = df[df.iloc[:, 1].notna()]
+        if valid.empty:
             return None
         
-        # 最新の有効データを取得
-        last_valid_index = valid_rows.index[-1]
-        latest_date = df.iloc[last_valid_index, 0]
-        latest_rate = df.iloc[last_valid_index, 1]
-        
-        # 利率を数値に変換
-        try:
-            latest_rate = float(latest_rate)
-        except (ValueError, TypeError):
-            return None
-        
-        return csv_url, latest_date, latest_rate, df
-        
-    except Exception as e:
-        # エラーログは呼び出し側で処理
+        idx = valid.index[-1]
+        return url, df.iloc[idx, 0], float(df.iloc[idx, 1])
+    except:
         return None
 
-
-# ====日本の銘柄リストを取得する関数====
-
 @st.cache_data
-def load_japan_stock_list():
-    """
-    日本取引所(JPX)が公開している銘柄リスト(Excel)を読み込み，
-    証券コードと銘柄名の一覧をDataFrameとして返す．
-    読み込みに失敗した場合はNoneを返す．
-    """
-    # 東京証券取引所が提供する東証上場銘柄一覧(Excel)
-    url = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
+def load_japan_stocks():
+    """日本株リスト取得"""
     try:
-        # Excelを読み込む(1行目をスキップ)
-        df = pd.read_excel(url, skiprows=1, header=None)
-        # 必要な列(1列目:コード，2列目:銘柄名)のみ抽出し，欠損行を除外
-        df = df[[1, 2]].dropna()
-        # 列名を設定(コードと銘柄名)
-        df.columns = ['コード', '銘柄名']
-        # コードを文字列に変換して空白除去
-        df['コード'] = df['コード'].astype(str).str.strip()
+        url = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
+        df = pd.read_excel(url, skiprows=1, header=None)[[1, 2]].dropna()
+        df.columns = ['code', 'name']
+        df['code'] = df['code'].astype(str).str.strip()
         return df
     except Exception as e:
-        # エラー発生時は警告表示し，Noneを返す
         st.warning(f"{t('warning_jp_stock_list_failed')}: {e}")
         return None
 
-
-# ====Yahoo Finance検索APIと日本銘柄リストを使った銘柄検索クラス====
-
-class AssetSearcher:
-    def __init__(self, jp_stock_df=None):
-        self.search_url = "https://query1.finance.yahoo.com/v1/finance/search"
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json',
-        })
-        self.last_request_time = 0
-        self.min_request_interval = 0.5  # レート制限（0.5秒）
-        self.jp_stock_df = jp_stock_df  # 日本銘柄リスト
-    
-    def search_assets(self, query, max_results=20):
-        """銘柄を検索してリストを返す"""
-        if not query or len(query.strip()) < 1:
-            return []
-        
-        query = query.strip()
-        assets = []
-        
-        # 1. まず日本銘柄リストから検索（日本語対応）
-        if self.jp_stock_df is not None:
-            jp_results = self._search_japan_stocks(query)
-            assets.extend(jp_results)
-        
-        # 2. Yahoo Finance APIで検索（英数字）
-        try:
-            self._rate_limit()
-            yahoo_results = self._call_yahoo_search_api(query)
-            
-            for result in yahoo_results:
-                asset = self._convert_to_asset_info(result)
-                if asset:
-                    # 重複を避ける（同じシンボルが既にある場合はスキップ）
-                    if not any(a['symbol'] == asset['symbol'] for a in assets):
-                        assets.append(asset)
-        except Exception as e:
-            st.warning(f"{t('warning_yahoo_search_error')}: {e}")
-        
-        # 最大結果数に制限
-        return assets[:max_results]
-    
-    def _search_japan_stocks(self, query):
-        """日本銘柄リストから検索（証券コードまたは銘柄名）"""
-        results = []
-        
-        try:
-            # 証券コードで検索
-            code_matches = self.jp_stock_df[
-                self.jp_stock_df['コード'].str.contains(query, case=False, na=False)
-            ]
-            
-            # 銘柄名で検索（日本語対応）
-            name_matches = self.jp_stock_df[
-                self.jp_stock_df['銘柄名'].str.contains(query, case=False, na=False)
-            ]
-            
-            # 結果をマージ（重複を除く）
-            matches = pd.concat([code_matches, name_matches]).drop_duplicates()
-            
-            # 最大20件に制限
-            for _, row in matches.head(20).iterrows():
-                results.append({
-                    'symbol': row['コード'] + '.T',  # .Tを付けて東証銘柄として識別
-                    'name': row['銘柄名'],
-                    'exchange': 'Tokyo',
-                    'currency': 'JPY',
-                    'type': 'EQUITY'
-                })
-
-        except Exception as e:
-            st.warning(f"{t('warning_jp_stock_search_error')}: {e}")
-        
-        return results
-    
-    def _rate_limit(self):
-        """レート制限を適用"""
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        
-        if elapsed < self.min_request_interval:
-            time.sleep(self.min_request_interval - elapsed)
-        
-        self.last_request_time = time.time()
-    
-    def _call_yahoo_search_api(self, query):
-        """Yahoo Finance検索APIを呼び出す"""
-        try:
-            params = {'q': query, 'quotesCount': 15, 'newsCount': 0}
-            response = self.session.get(self.search_url, params=params, timeout=3)
-            response.raise_for_status()
-            data = response.json()
-            return data.get('quotes', [])
-        except Exception as e:
-            # エラーは警告として表示せず，空のリストを返す
-            return []
-    
-    def _convert_to_asset_info(self, yahoo_result):
-        """Yahoo Financeの検索結果を資産情報に変換"""
-        try:
-            symbol = yahoo_result.get('symbol')
-            if not symbol:
-                return None
-            
-            name = (yahoo_result.get('longname') or 
-                   yahoo_result.get('shortname') or 
-                   symbol)
-            
-            exchange = yahoo_result.get('exchange', '')
-            currency = yahoo_result.get('currency', 'USD')
-            quote_type = yahoo_result.get('quoteType', '')
-            
-            return {
-                'symbol': symbol,
-                'name': name,
-                'exchange': exchange,
-                'currency': currency,
-                'type': quote_type
-            }
-            
-        except Exception as e:
-            return None
-
-
-# ====ユーザー入力の正規化関数====
-
-def normalize_input(text):
-    """
-    入力文字列を正規化(全角→半角，記号の統一など)して返す．
-    例: '７２０３' → '7203'
-    """
-    return unicodedata.normalize('NFKC', text)
-
-
-# ====言語選択UI====
-
-# 言語選択を右上に配置
-col1, col2 = st.columns([4, 1])
-with col2:
-    language_options = {"English": "en", "日本語": "ja"}
-    selected_language_name = st.selectbox(
-        t("language_select"),
-        options=list(language_options.keys()),
-        index=0 if st.session_state.language == "en" else 1,
-        key="language_selector"
-    )
-    # 言語が変更された場合、セッションステートを更新
-    new_language = language_options[selected_language_name]
-    if new_language != st.session_state.language:
-        st.session_state.language = new_language
-        st.rerun()
-
-# ====タイトル表示(カスタムCSSで装飾)====
-
-# 通常表示では大きく，モバイル表示では小さく表示されるように調整
-st.markdown(f"""
-    <style>
-    /* タイトルの基本スタイル */
-    .custom-title {{
-        text-align: center;
-        font-size: 40px;
-        margin-bottom: 1rem;
-    }}
-    /* モバイル表示（画面幅600px以下）ではフォントサイズを縮小 */
-    @media screen and (max-width: 600px) {{
-        .custom-title {{
-            font-size: 25px;
-        }}
-    }}
-    </style>
-    <!-- タイトルを表示する要素 -->
-    <div class='custom-title'>{t("app_title")}</div>
-""", unsafe_allow_html=True)
-
-# 区切り線を表示
-st.markdown("""
-<hr style='border: 1px solid white; margin: 25px 0;' />
-""", unsafe_allow_html=True)
-
-
-# ====入力方式選択====
-
-# ユーザにデータ入力の方式(CSV or 銘柄検索)を選ばせる
-# 前回の入力方式をセッションから取得(初回はNone)
-previous_input_mode = st.session_state.get("previous_input_mode", None)
-# ユーザに入力方式を選ばせるラジオボタン
-input_mode = st.radio(
-    t("data_input_method"),
-    [t("ticker_search_input"), t("csv_input")],
-    horizontal=False
-)
-# 入力方式が前回と異なる場合，セッション情報を初期化(結果などをクリア)
-if "previous_input_mode" not in st.session_state:
-    st.session_state.previous_input_mode = input_mode
-if st.session_state.previous_input_mode != input_mode:
-    st.session_state._df = None
-    st.session_state.df_csv = None
-    st.session_state.log_returns = None
-    st.session_state.result_data = None
-    st.session_state.calculating = False
-    st.session_state.previous_input_mode = input_mode
-# 現在の入力方式をセッションに記録(次回の比較に使用)
-st.session_state.previous_input_mode = input_mode
-# CSV入力モードを真偽値で保持(以降の分岐処理に使用)
-use_csv = input_mode == t("csv_input")
-st.session_state.use_csv = use_csv
-
-# 区切り線を表示
-st.markdown("---")
-
-
-# ====入力データ関連の初期化====
-
-uploaded_file = None  # ユーザがアップロードするCSVファイルを格納
-log_returns = None  # 価格データから計算されるログリターン(DataFrameまたは配列)
-
-
-# ====ドル円レートを取得する関数====
-
 @st.cache_data
-def fetch_usd_to_jpy_rates(start_date, end_date, interval):
-    """
-    指定期間・スパンでドル円為替レートを取得する（USD/JPY）．
-    """
-    fx = yf.download("JPY=X", start=start_date, end=end_date, interval=interval, progress=False)
-    if fx is None or fx.empty or "Close" not in fx.columns:
-        raise ValueError("ドル円為替レートの取得に失敗しました．")
-    fx = fx["Close"]
-    if fx.index.tz is not None:
-        fx.index = fx.index.tz_convert("Asia/Tokyo").tz_localize(None)
-    return fx.sort_index()
-
-
-# ====終値の取得関数====
-
-def fetch_single_asset_data(args):
-    """単一銘柄のデータを取得（並列処理用）"""
-    symbol, start_date, end_date, interval = args
+def fetch_fx_rates(start, end, interval):
+    """ドル円レート取得"""
+    ticker = yf.Ticker("JPY=X")
+    hist = ticker.history(
+        start=start,
+        end=end + timedelta(days=1),
+        interval=interval,
+        auto_adjust=False,
+        prepost=False,
+        repair=True
+    )
     
+    if hist is None or hist.empty:
+        raise ValueError("FX rate fetch failed")
+    
+    # Close列を取得
+    if 'Adj Close' in hist.columns:
+        fx = hist['Adj Close'].copy()
+    elif 'Close' in hist.columns:
+        fx = hist['Close'].copy()
+    else:
+        raise ValueError("FX rate fetch failed - no Close column")
+    
+    # タイムゾーン処理
+    if hasattr(fx.index, 'tz') and fx.index.tz is not None:
+        fx.index = fx.index.tz_localize(None)
+    
+    # 日付正規化
+    fx.index = fx.index.normalize()
+    
+    return fx.dropna().sort_index()
+
+def fetch_single_asset(args):
+    """単一銘柄データ取得"""
+    symbol, start, end, interval = args
     try:
-        # yfinanceでデータ取得（auto_adjust=Falseに設定）
+        # yfinanceでデータ取得
         ticker = yf.Ticker(symbol)
         hist = ticker.history(
-            start=start_date,
-            end=end_date + timedelta(days=1),  # 終了日を含むため+1日
+            start=start,
+            end=end + timedelta(days=1),  # 終了日を含むため+1日
             interval=interval,
             auto_adjust=False,  # Adj Close取得に必須
             prepost=False,      # プレ・ポストマーケットを除外
@@ -636,6 +378,7 @@ def fetch_single_asset_data(args):
             price_series = hist['Adj Close'].copy()
             price_series.name = symbol
             
+            # 日付データはyfinanceの元データをそのまま使用
             # タイムゾーン情報がある場合のみ削除
             if hasattr(price_series.index, 'tz') and price_series.index.tz is not None:
                 price_series.index = price_series.index.tz_localize(None)
@@ -646,20 +389,38 @@ def fetch_single_asset_data(args):
             # NaN値を除去（補完は行わない）
             price_series = price_series.dropna()
             
-            return {
-                'symbol': symbol,
-                'data': price_series,
-                'success': True
-            }
-        else:
-            return {
-                'symbol': symbol,
-                'data': pd.Series(dtype=float),
-                'success': False
-            }
-
+            if not price_series.empty:
+                return {
+                    'symbol': symbol,
+                    'data': price_series,
+                    'success': True
+                }
+        
+        # Adj Closeがない場合はCloseを使用
+        if not hist.empty and 'Close' in hist.columns:
+            price_series = hist['Close'].copy()
+            price_series.name = symbol
+            
+            if hasattr(price_series.index, 'tz') and price_series.index.tz is not None:
+                price_series.index = price_series.index.tz_localize(None)
+            
+            price_series.index = price_series.index.normalize()
+            price_series = price_series.dropna()
+            
+            if not price_series.empty:
+                return {
+                    'symbol': symbol,
+                    'data': price_series,
+                    'success': True
+                }
+        
+        return {
+            'symbol': symbol,
+            'data': pd.Series(dtype=float),
+            'success': False
+        }
+    
     except Exception as e:
-        st.warning(f"{t('warning_data_fetch_error')} {symbol}: {e}")
         return {
             'symbol': symbol,
             'data': pd.Series(dtype=float),
@@ -667,897 +428,671 @@ def fetch_single_asset_data(args):
             'error': str(e)
         }
 
-
-def fetch_close_prices(symbols, start_date, end_date, interval):
-    """
-    与えられた証券コードリストに対して，指定期間・頻度の調整後終値を並列取得する．
-    """
+def fetch_prices(symbols, start, end, interval):
+    """複数銘柄の価格データ並列取得"""
     if not symbols:
         raise ValueError(t("error_no_valid_tickers"))
     
-    # 並列処理用の引数リストを作成
-    args_list = [(symbol, start_date, end_date, interval) for symbol in symbols]
+    args_list = [(s, start, end, interval) for s in symbols]
+    data = {}
+    failed_symbols = []
     
-    price_data = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(symbols))) as ex:
+        futures = {ex.submit(fetch_single_asset, a): a[0] for a in args_list}
+        for f in concurrent.futures.as_completed(futures):
+            r = f.result()
+            if r['success'] and not r['data'].empty:
+                data[r['symbol']] = r['data']
+            else:
+                failed_symbols.append(r['symbol'])
     
-    # 並列処理でデータ取得
-    max_workers = min(4, len(symbols))
+    # 失敗した銘柄を警告
+    if failed_symbols:
+        st.warning(f"{t('warning_data_fetch_error')}: {', '.join(failed_symbols)}")
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # 全てのタスクを投入
-        future_to_symbol = {
-            executor.submit(fetch_single_asset_data, args): args[0] 
-            for args in args_list
-        }
-        
-        # 完了したタスクから順次処理
-        for future in concurrent.futures.as_completed(future_to_symbol):
-            symbol = future_to_symbol[future]
-            try:
-                result = future.result()
-                if result['success'] and not result['data'].empty:
-                    price_data[result['symbol']] = result['data']
-            except Exception as e:
-                st.warning(f"{t('warning_result_fetch_error')} {symbol}: {e}")
-
-    if not price_data:
+    if not data:
         raise ValueError(t("error_no_valid_price_data"))
     
-    # DataFrameに統合
-    df_merged = pd.DataFrame(price_data).sort_index()
+    df = pd.DataFrame(data).sort_index().dropna()
     
-    # 共通日付のみに絞る
-    common_dates = df_merged.dropna().index
-    df_merged = df_merged.loc[common_dates]
-    
-    # 為替換算オプションがオンなら，非JPY通貨をドル円換算（簡易的に全てUSDと仮定）
-    if st.session_state.get("convert_usd_to_jpy", False):
+    # 為替換算
+    if st.session_state.get("convert_usd_to_jpy"):
         try:
-            fx_rates = fetch_usd_to_jpy_rates(start_date, end_date, interval)
-            if isinstance(fx_rates, pd.DataFrame):
-                fx_rates = fx_rates.squeeze()
-            
-            # 米国銘柄を検出（.Tで終わらないものを米国銘柄と仮定）
-            for symbol in df_merged.columns:
-                if not symbol.endswith(".T"):  
-                    aligned_fx = fx_rates.reindex(df_merged.index).ffill().bfill()
-                    if len(aligned_fx) == len(df_merged.index):
-                        df_merged[symbol] = df_merged[symbol] * aligned_fx
+            fx = fetch_fx_rates(start, end, interval)
+            if isinstance(fx, pd.DataFrame):
+                fx = fx.squeeze()
+            for sym in df.columns:
+                if not sym.endswith(".T"):
+                    aligned = fx.reindex(df.index).ffill().bfill()
+                    if len(aligned) == len(df.index):
+                        df[sym] = df[sym] * aligned
         except Exception as e:
             st.warning(f"{t('warning_fx_conversion_failed')}: {e}")
     
-    return df_merged
+    return df
 
-
-# ====終値からログリターンを計算する関数====
-
-def calculate_log_returns(df, axis="auto"):
-    """
-    指定された方向に沿ってログリターンを計算する．
-    - axis=0 : 列方向（通常，行＝日付，列＝銘柄）
-    - axis=1 : 行方向（通常，行＝銘柄，列＝日付）
-    - axis='auto' の場合は列名が日付型なら axis=1，それ以外は axis=0 に自動判定
-    """
+def calc_log_returns(df, axis="auto"):
+    """ログリターン計算"""
     if df.isnull().values.any():
-        raise ValueError("欠損値が含まれています．")
+        raise ValueError("Missing values in data")
     if (df <= 0).values.any():
-        raise ValueError("0以下の価格が含まれています．")
+        raise ValueError("Non-positive values in data")
     if df.shape[1] < 2:
-        raise ValueError("日付列が2列以上必要です．")
-    df = df.sort_index()  # 日付順にソート
-    # axis 自動判定：datetime型がどちらにあるかで決定
+        raise ValueError("Need at least 2 columns")
+    
+    df = df.sort_index()
+    
     if axis == "auto":
         if pd.api.types.is_datetime64_any_dtype(df.columns):
             axis = 1
         elif pd.api.types.is_datetime64_any_dtype(df.index):
             axis = 0
         else:
-            raise ValueError("時系列（日付）情報が index/columns のどちらにも見つかりません．")
+            raise ValueError("Cannot detect time series axis")
+    
     return np.log(df / df.shift(axis=axis)).dropna(axis=axis)
 
+# ====銘柄検索クラス====
+class AssetSearcher:
+    def __init__(self, jp_df=None):
+        self.url = "https://query1.finance.yahoo.com/v1/finance/search"
+        self.session = requests.Session()
+        self.session.headers.update({'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'})
+        self.last_req = 0
+        self.jp_df = jp_df
+    
+    def search(self, query, max_results=20):
+        if not query or len(query.strip()) < 1:
+            return []
+        
+        query = query.strip()
+        results = []
+        
+        if self.jp_df is not None:
+            results.extend(self._search_jp(query))
+        
+        try:
+            self._rate_limit()
+            for r in self._call_api(query):
+                asset = self._convert(r)
+                if asset and not any(a['symbol'] == asset['symbol'] for a in results):
+                    results.append(asset)
+        except Exception as e:
+            st.warning(f"{t('warning_search_error')}: {e}")
+        
+        return results[:max_results]
+    
+    def _search_jp(self, query):
+        results = []
+        try:
+            code_match = self.jp_df[self.jp_df['code'].str.contains(query, case=False, na=False)]
+            name_match = self.jp_df[self.jp_df['name'].str.contains(query, case=False, na=False)]
+            matches = pd.concat([code_match, name_match]).drop_duplicates().head(20)
+            for _, row in matches.iterrows():
+                results.append({
+                    'symbol': row['code'] + '.T',
+                    'name': row['name'],
+                    'exchange': 'Tokyo',
+                    'currency': 'JPY',
+                    'type': 'EQUITY'
+                })
+        except:
+            pass
+        return results
+    
+    def _rate_limit(self):
+        elapsed = time.time() - self.last_req
+        if elapsed < 0.5:
+            time.sleep(0.5 - elapsed)
+        self.last_req = time.time()
+    
+    def _call_api(self, query):
+        try:
+            resp = self.session.get(self.url, params={'q': query, 'quotesCount': 15, 'newsCount': 0}, timeout=3)
+            resp.raise_for_status()
+            return resp.json().get('quotes', [])
+        except:
+            return []
+    
+    def _convert(self, r):
+        symbol = r.get('symbol')
+        if not symbol:
+            return None
+        return {
+            'symbol': symbol,
+            'name': r.get('longname') or r.get('shortname') or symbol,
+            'exchange': r.get('exchange', ''),
+            'currency': r.get('currency', 'USD'),
+            'type': r.get('quoteType', '')
+        }
+
+# ====メインUI====
+
+# 言語選択
+col1, col2 = st.columns([4, 1])
+with col2:
+    lang_opts = {"English": "en", "日本語": "ja"}
+    selected = st.selectbox(
+        t("language_select"),
+        list(lang_opts.keys()),
+        index=0 if st.session_state.language == "en" else 1
+    )
+    if lang_opts[selected] != st.session_state.language:
+        st.session_state.language = lang_opts[selected]
+        st.rerun()
+
+# タイトル
+st.markdown(f"<div class='custom-title'>{t('app_title')}</div>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 1px solid white; margin: 25px 0;'/>", unsafe_allow_html=True)
+
+# 入力モード選択
+input_mode = st.radio(t("data_input_method"), [t("ticker_search_input"), t("csv_input")])
+use_csv = input_mode == t("csv_input")
+
+# モード変更時の初期化
+if st.session_state.previous_input_mode != input_mode:
+    for key in ['df_csv', 'close_df', 'log_returns', 'result_data']:
+        st.session_state[key] = None
+    st.session_state.calculating = False
+    st.session_state.previous_input_mode = input_mode
+
+st.session_state.use_csv = use_csv
+st.markdown("---")
 
 # ====CSV入力モード====
-
 if use_csv:
-    # span及びintervalを初期化
-    span = None
-    interval = None
-    # CSVファイルのアップロード
-    uploaded_file = st.file_uploader(t("csv_file_upload"), type="csv")
-    # サンプルCSVの作成
-    # 本日を含めた直近10営業日(平日(祝日は考慮しない))の日付のリストを作成
+    uploaded = st.file_uploader(t("csv_file_upload"), type="csv")
+    
+    # サンプルCSV
     sample_dates = pd.date_range(end=pd.Timestamp.today(), periods=10, freq="B")
-    # ダミーの価格データを作成
-    template_data = pd.DataFrame({
-        date.strftime("%Y-%m-%d"): [  # 各日付を"YYYY-MM-DD"形式にして列に
-            np.random.randint(2500, 2750),  # 7203用(例:トヨタ自動車)
-            np.random.randint(3250, 3750),  # 6758用(例:ソニーグループ)
-            np.random.randint(140, 150)  # 9432用(例:日本電信電話)
-         ] for date in sample_dates  # 各営業日毎に値を生成
-     }, index=["7203.T", "6758.T", "9432.T"])  # 証券コードを行に
-    # 1行目のインデックス名を空にする
-    template_data.index.name = ""
-    # CSV化(文字列としてメモリ上に保存)
-    csv_buffer = io.StringIO()
-    template_data.to_csv(csv_buffer)
-    # CSV文字列を取り出す
-    csv_data = csv_buffer.getvalue()
-    # サンプルCSVのダウンロード
-    st.download_button(t("sample_csv_download"), data=csv_data, file_name="sample.csv", mime="text/csv")
-    # 実際のCSVファイル処理
-    if uploaded_file:
+    sample_data = pd.DataFrame({
+        d.strftime("%Y-%m-%d"): [
+            np.random.randint(2500, 2750),
+            np.random.randint(3250, 3750),
+            np.random.randint(140, 150)
+        ] for d in sample_dates
+    }, index=["7203.T", "6758.T", "9432.T"])
+    sample_data.index.name = ""
+    
+    csv_buf = io.StringIO()
+    sample_data.to_csv(csv_buf)
+    st.download_button(t("sample_csv_download"), csv_buf.getvalue(), "sample.csv", "text/csv")
+    
+    if uploaded:
         try:
-            # CSVの読み込み(index_col=0で証券コードをインデックスに)
-            df_csv = pd.read_csv(uploaded_file, index_col=0)
-            # 日付列の変換(文字列→datetime)
-            parsed_dates = pd.to_datetime(df_csv.columns, errors='coerce')
-            if parsed_dates.isnull().any():
+            df_csv = pd.read_csv(uploaded, index_col=0)
+            dates = pd.to_datetime(df_csv.columns, errors='coerce')
+            if dates.isnull().any():
                 raise ValueError(t("error_csv_date_format"))
-            df_csv.columns = parsed_dates  # 日付型に変換
-            # 必ず日付順にソート（念のため）
+            
+            df_csv.columns = dates
             df_csv = df_csv.sort_index(axis=1)
-            # start_dateとend_dateの推定
-            st.session_state.start_date = df_csv.columns.min().to_pydatetime().date()
-            st.session_state.end_date = df_csv.columns.max().to_pydatetime().date()
-            # スパン(日/週/月)の推定(平均間隔による)
-            dates = df_csv.columns
-            try:
-                deltas = np.diff(dates).astype('timedelta64[D]').astype(int)
-                avg_delta = np.mean(deltas)
-                if avg_delta <= 2:
-                    span = t("daily")
-                    interval = "1d"
-                elif avg_delta <= 10:
-                    span = t("weekly")
-                    interval = "1wk"
-                else:
-                    span = t("monthly")
-                    interval = "1mo"
-                st.session_state.interval = interval
-                st.info(f"{t('span_auto_detected')}：**{span}**（{t('avg_interval')} {avg_delta:.1f} {t('days')}）")
-            except Exception as e:
-                st.error(f"{t('error_span_estimation')}：{e}")
-                st.stop()
-            # CSVプレビュー表示
-            df_csv_display = df_csv.copy()
-            try:
-                df_csv_display.columns = [col.strftime('%Y/%m/%d') for col in df_csv_display.columns]
-            except Exception as e:
-                st.error(f"{t('error_column_date_format')}（{e}）．")
-                st.stop()
+            
+            st.session_state.start_date = df_csv.columns.min().date()
+            st.session_state.end_date = df_csv.columns.max().date()
+            
+            # スパン推定
+            deltas = np.diff(df_csv.columns).astype('timedelta64[D]').astype(int)
+            avg = np.mean(deltas)
+            if avg <= 2:
+                span, interval = t("daily"), "1d"
+            elif avg <= 10:
+                span, interval = t("weekly"), "1wk"
+            else:
+                span, interval = t("monthly"), "1mo"
+            
+            st.session_state.interval = interval
+            st.session_state.span = span
+            st.info(f"{t('span_auto_detected')}: **{span}** ({t('avg_interval')} {avg:.1f} {t('days')})")
+            
             with st.expander(t("csv_preview")):
-                st.dataframe(df_csv_display)
-            num_csv_tickers = df_csv_display.shape[0]
-            st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}：<strong>{num_csv_tickers}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
-            # 価格データをセッションに保存
-            st.session_state.df_csv = df_csv  # 読み込んだ価格（行：銘柄，列：日付）
+                display = df_csv.copy()
+                display.columns = [format_date(c) for c in display.columns]
+                st.dataframe(display)
+            
+            st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}: <strong>{df_csv.shape[0]}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
+            st.session_state.df_csv = df_csv
+            
         except Exception as e:
             st.error(f"{t('error_csv_processing')}: {e}")
 
-
 # ====銘柄検索入力モード====
-
-if not use_csv:
-    # span及びrf_rate_spanを初期化
-    span = None
-    rf_rate_span = None
-
-    # 銘柄検索機能
+else:
     st.markdown(f"### {t('ticker_search')}")
     
-    # 日本銘柄リストを読み込む
-    if 'jp_stock_df' not in st.session_state:
-        st.session_state.jp_stock_df = load_japan_stock_list()
+    if 'jp_stocks' not in st.session_state:
+        st.session_state.jp_stocks = load_japan_stocks()
     
-    jp_stock_df = st.session_state.jp_stock_df
+    if 'searcher' not in st.session_state:
+        st.session_state.searcher = AssetSearcher(st.session_state.jp_stocks)
     
-    # AssetSearcherのインスタンスを作成（セッション状態で管理）
-    if 'asset_searcher' not in st.session_state:
-        st.session_state.asset_searcher = AssetSearcher(jp_stock_df=jp_stock_df)
-    
-    searcher = st.session_state.asset_searcher
-    
-    # 検索入力
     search_query = normalize_input(st.text_input(
         t("ticker_search_label"),
-        placeholder=t("ticker_search_placeholder"),
-        key="search_input"
+        placeholder=t("ticker_search_placeholder")
     ))
-
-    # 為替換算オプション
+    
     st.checkbox(t("convert_usd_to_jpy"), key="convert_usd_to_jpy")
     
-    # 検索結果の表示
+    # 検索結果表示
     if search_query:
         with st.spinner(t("calculating")):
-            search_results = searcher.search_assets(search_query, max_results=20)
-
-        if search_results:
-            st.markdown(f"**{t('search_results')}: {len(search_results)}{t('results_count')}**")
+            results = st.session_state.searcher.search(search_query)
+        
+        if results:
+            st.markdown(f"**{t('search_results')}: {len(results)}{t('results_count')}**")
             
-            # 検索結果を選択肢として表示
-            for i, asset in enumerate(search_results):
-                col1, col2, col3, col4 = st.columns([2, 4, 2, 1])
+            for i, asset in enumerate(results):
+                c1, c2, c3, c4 = st.columns([2, 4, 2, 1])
+                c1.write(f"**{asset['symbol']}**")
+                c2.write(asset['name'])
+                c3.write(f"{asset['currency']} ({asset['exchange'] or 'N/A'})")
                 
-                with col1:
-                    st.write(f"**{asset['symbol']}**")
-                with col2:
-                    st.write(f"{asset['name']}")
-                with col3:
-                    # 取引所と通貨の表示
-                    exchange_info = asset['exchange'] if asset['exchange'] else 'N/A'
-                    st.write(f"{asset['currency']} ({exchange_info})")
-                with col4:
-                    # 既に選択済みかチェック
-                    is_selected = any(a['symbol'] == asset['symbol'] for a in st.session_state.selected_assets)
-
-                    if not is_selected:
-                        if st.button(t("add_button"), key=f"add_{i}_{asset['symbol']}"):
-                            st.session_state.selected_assets.append(asset)
-                            st.rerun()
-                    else:
-                        st.write(t("already_selected"))
+                is_sel = any(a['symbol'] == asset['symbol'] for a in st.session_state.selected_assets)
+                if is_sel:
+                    c4.write(t("already_selected"))
+                elif c4.button(t("add_button"), key=f"add_{i}_{asset['symbol']}"):
+                    st.session_state.selected_assets.append(asset)
+                    st.rerun()
         else:
             st.warning(t("no_results"))
     
-    # 選択済み銘柄の表示
+    # 選択済み銘柄
     if st.session_state.selected_assets:
         st.markdown("---")
         st.markdown(f"### {t('selected_tickers')}")
-        num_selected = len(st.session_state.selected_assets)
-        st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}：<strong>{num_selected}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 16px; color: lightgray;'>{t('analysis_target_count')}: <strong>{len(st.session_state.selected_assets)}</strong> {t('tickers')}</p>", unsafe_allow_html=True)
         
         for i, asset in enumerate(st.session_state.selected_assets):
             cols = st.columns([2, 4, 2, 1])
             cols[0].write(asset["symbol"])
             cols[1].write(asset["name"])
-            exchange_display = asset.get('exchange', 'N/A')
-            cols[2].write(f"{asset['currency']} ({exchange_display})")
+            cols[2].write(f"{asset['currency']} ({asset.get('exchange', 'N/A')})")
             if cols[3].button(t("delete_button"), key=f"del_{i}"):
                 st.session_state.selected_assets.pop(i)
                 st.rerun()
-
-        if st.button(t("reset_button"), key="reset", type="secondary"):
+        
+        if st.button(t("reset_button"), type="secondary"):
             st.session_state.selected_assets = []
             st.session_state.result_data = None
             st.rerun()
-
-        # 日付とスパンの設定
+        
+        # 期間設定
         st.markdown("---")
         st.markdown(f"### {t('analysis_period')}")
         
-        def_date_end = date.today() - timedelta(days=1)
-        def_date_start = def_date_end - timedelta(days=365)
-        start_date = st.date_input(t("start_date"), value=def_date_start)
-        end_date = st.date_input(t("end_date"), value=def_date_end)
-
+        def_end = date.today() - timedelta(days=1)
+        def_start = def_end - timedelta(days=365)
+        start_date = st.date_input(t("start_date"), def_start)
+        end_date = st.date_input(t("end_date"), def_end)
+        
         if end_date > date.today():
             st.error(t("error_future_date"))
             st.stop()
-        elif start_date >= end_date:
+        if start_date >= end_date:
             st.error(t("error_date_order"))
             st.stop()
-
+        
         span = st.radio(t("span_label"), [t("daily"), t("weekly"), t("monthly")])
         interval_map = {t("daily"): "1d", t("weekly"): "1wk", t("monthly"): "1mo"}
         interval = interval_map[span]
         
-        # 価格データ取得
         symbols = [a["symbol"] for a in st.session_state.selected_assets]
-
+        
         if len(symbols) < 2:
             st.info(t("error_min_tickers"))
             st.stop()
-
+        
         try:
             with st.spinner(t("calculating")):
-                close_df = fetch_close_prices(symbols, start_date, end_date, interval)
+                close_df = fetch_prices(symbols, start_date, end_date, interval)
         except ValueError as e:
-            st.error(f"{t('error_price_fetch')}：{e}")
+            st.error(f"{t('error_price_fetch')}: {e}")
             st.stop()
-
+        
         if close_df.empty:
             st.error(t("error_price_empty"))
             st.stop()
         
-        # ソート（念のため）
-        close_df = close_df.sort_index()
-        
-        # 価格DataFrameをセッションに保存
-        st.session_state.close_df = close_df
-        
-        # 日付情報をセッションに保存
+        st.session_state.close_df = close_df.sort_index()
         st.session_state.start_date = start_date
         st.session_state.end_date = end_date
         st.session_state.interval = interval
+        st.session_state.span = span
 
-
-# ====最小投資割合と期待利益率の段階数の入力====
-
+# ====分析パラメータ====
 st.markdown("---")
 st.markdown(f"### {t('analysis_params')}")
 
-min_weight = st.number_input(t("min_weight"), min_value=0.0, max_value=0.5, value=0.00, step=0.001, format="%.3f")
-num_steps = st.number_input(t("num_steps"), min_value=5, max_value=500, value=50, step=1)
+min_weight = st.number_input(t("min_weight"), 0.0, 0.5, 0.0, 0.001, "%.3f")
+num_steps = st.number_input(t("num_steps"), 5, 500, 50)
 
-
-# ====無リスク金利の取得と初期値の決定====
-
-result = get_latest_jgb_1year_rate()
-if result:  # 取得に成功した場合
-    csv_url, latest_date, latest_rate, df = result
+# リスクフリーレート
+jgb = get_jgb_rate()
+if jgb:
+    url, dt, rate = jgb
     if st.session_state.language == "ja":
-        st.info(f"{latest_date} {t('jgb_rate_info')} {latest_rate:.3f}% です．\n[財務省]({csv_url})")
+        st.info(f"{dt}{t('jgb_rate_info')}{rate:.3f}%です．[{t('mof_source')}]({url})")
     else:
-        st.info(f"{t('jgb_rate_info')} on {latest_date}: {latest_rate:.3f}%\n[Ministry of Finance]({csv_url})")
-    rf_rate_default = latest_rate
-else:  # 取得に失敗した場合
+        st.info(f"{t('jgb_rate_info')} {dt}: {rate:.3f}% [{t('mof_source')}]({url})")
+    rf_default = rate
+else:
     st.warning(t("jgb_rate_failed"))
-    rf_rate_default = 0.50  # デフォルト値
+    rf_default = 0.5
 
-# ユーザが任意に設定可能な入力フォーム(%で表示)
-rf_rate = st.number_input(
-    t("risk_free_rate_label"),
-    min_value=0.0, max_value=100.0,
-    value=rf_rate_default,
-    step=0.001,
-    format="%.3f"
-) / 100  # 実際の計算では少数を使う
-
-# rf_rate(年利)をスパン単位に変換（定義のみ）
-def convert_rf_rate_safe(rf_rate, span):
-    """
-    年率のリスクフリーレートをスパン（日足・週足・月足）に応じて変換．
-    spanが不明な場合はエラーとして処理を停止．
-    """
-    daily_label = t("daily")
-    weekly_label = t("weekly")
-    monthly_label = t("monthly")
-
-    if span == daily_label:
-        return rf_rate / 252
-    elif span == weekly_label:
-        return rf_rate / 52
-    elif span == monthly_label:
-        return rf_rate / 12
-    else:
-        st.error(f"{t('error_date_not_set')}（{span}）")
-        st.stop()
-
-# span(日/週/月)が決まったら，rf_rate(年利)をスパン単位に変換
-if span:
-    rf_rate_span = convert_rf_rate_safe(rf_rate, span)
-
+rf_rate = st.number_input(t("risk_free_rate_label"), 0.0, 100.0, rf_default, 0.001, "%.3f") / 100
 
 # ====比較市場ポートフォリオの選択====
-
 st.markdown("---")
 st.markdown(f"### {t('market_portfolio')}")
 
-# 市場ポートフォリオ選択
-market_choice = st.radio(
-    t("market_portfolio_label"),
-    (
-        "Nikkei 225 (^N225)",
-        "NASDAQ Composite (^IXIC)",
-        "S&P 500 (^GSPC)",
-        "Dow Jones Industrial Average (^DJI)"
-    )
-)
+MARKETS = {
+    "Nikkei 225 (^N225)": "^N225",
+    "NASDAQ Composite (^IXIC)": "^IXIC",
+    "S&P 500 (^GSPC)": "^GSPC",
+    "Dow Jones Industrial Average (^DJI)": "^DJI"
+}
 
-# 選択肢からティッカーコードを割り出す
-if "Nikkei 225 (^N225)" in market_choice:
-    market_ticker = "^N225"
-elif "NASDAQ Composite (^IXIC)" in market_choice:
-    market_ticker = "^IXIC"
-elif "S&P 500 (^GSPC)" in market_choice:
-    market_ticker = "^GSPC"
-elif "Dow Jones Industrial Average (^DJI)" in market_choice:
-    market_ticker = "^DJI"
-else:
+market_choice = st.radio(t("market_portfolio_label"), list(MARKETS.keys()))
+market_ticker = MARKETS.get(market_choice)
+if not market_ticker:
     st.error(t("error_invalid_market_portfolio"))
     st.stop()
 
-# 選択結果をSessionStateに保存
 st.session_state.market_ticker = market_ticker
 
-
-# ====計算ボタンと実行====
-
+# ====計算実行====
 st.markdown("---")
 
-# 計算ボタンを表示する条件
-# CSVモードの場合: CSVファイルがアップロードされており，df_csvが存在する
-# 銘柄検索モードの場合: close_dfが存在し，2銘柄以上が選択されている
-show_calc_button = (
-    (use_csv and "df_csv" in st.session_state and st.session_state.df_csv is not None and uploaded_file is not None) or
-    (not use_csv and "close_df" in st.session_state and st.session_state.close_df is not None and len(st.session_state.selected_assets) >= 2)
+can_calc = (
+    (use_csv and st.session_state.get("df_csv") is not None) or
+    (not use_csv and st.session_state.get("close_df") is not None and len(st.session_state.selected_assets) >= 2)
 )
 
-# 計算ボタンの描画(押下時には run_calc がTrueになる)
-if show_calc_button:
-    run_calc = st.button(t("calc_button"), key="calc_button", disabled=st.session_state.calculating)
-
-    # 計算開始時の準備(calculatingフラグを立て，画面上に「計算中です．」と表示)
-    if run_calc:
-        st.session_state.calculating = True
-        with st.spinner(t("calculating")):
-            use_csv = st.session_state.get("use_csv", False)
-            if use_csv:  # CSV入力モード
-                df = st.session_state.get("df_csv", None)
+if can_calc and st.button(t("calc_button"), disabled=st.session_state.calculating):
+    st.session_state.calculating = True
+    
+    with st.spinner(t("calculating")):
+        try:
+            # データ準備
+            if use_csv:
+                df = st.session_state.df_csv
                 if df is None:
-                    st.error(t("error_csv_no_data"))
-                    st.stop()
-                # close_dfを定義（行＝日付，列＝銘柄）
+                    raise ValueError(t("error_csv_no_data"))
                 close_df = df.T
-                try:
-                    log_returns = calculate_log_returns(df, axis=1)  # df_csvからログリターン計算(axis=1で行方向に時系列計算)
-                except Exception as e:
-                    st.error(f"{t('error_log_return')}：{e}")
-                    st.stop()
-                # 証券コードリスト
-                tickers = log_returns.index.tolist()
-                log_returns = log_returns.T  # 計算後，log_returnsを転置して「行＝日付，列＝銘柄」に揃える
-            else:  # 銘柄検索入力モード
-                close_df = st.session_state.get("close_df", None)
+                log_returns = calc_log_returns(df, axis=1).T
+                tickers = log_returns.columns.tolist()
+            else:
+                close_df = st.session_state.close_df
                 if close_df is None:
-                    st.error(t("error_no_price_data"))
-                    st.stop()
-                try:
-                    log_returns = calculate_log_returns(close_df, axis=0)  # close_dfからログリターン計算(axis=0で列方向に時系列計算)
-                except Exception as e:
-                    st.error(f"{t('error_log_return')}：{e}")
-                    st.stop()
-                # 有効な銘柄数チェック（2銘柄未満なら中断）
-                if log_returns.shape[1] < 2:
-                    st.error(t("error_valid_tickers"))
-                    st.session_state.calculating = False
-                    st.stop()
-                # 日数のカウント（有効な共通データ行数）
-                valid_days = log_returns.shape[0]
-                # 想定されるスパン単位の日数
-                expected_days = (end_date - start_date).days
-                expected_count = {
-                    t("daily"): expected_days,
-                    t("weekly"): expected_days // 7,
-                    t("monthly"): expected_days // 30
-                }[span]
-                # 警告表示
-                if valid_days < expected_count * 1:
-                    st.info(
-                        f"{t('info_common_data')}{expected_count}{span}{t('info_common_data_only')}"
-                        f"{valid_days}{span}{t('info_common_data_available')}"
-                    )
-                # 証券コードリスト
+                    raise ValueError(t("error_no_price_data"))
+                log_returns = calc_log_returns(close_df, axis=0)
                 tickers = log_returns.columns.tolist()
             
+            if log_returns.shape[1] < 2:
+                raise ValueError(t("error_valid_tickers"))
+            
             st.session_state.close_df = close_df
-            # log_returnsをセッションに保存
             st.session_state.log_returns = log_returns
             
-            # 平均・標準偏差・共分散を計算（列＝銘柄方向）
-            mean_returns = log_returns.mean(axis=0).values
-            std_devs = log_returns.std(axis=0, ddof=0).values
-            cov_matrix = np.cov(log_returns.T.values)
+            # 統計量計算
+            mean_ret = log_returns.mean().values
+            std_devs = log_returns.std(ddof=0).values
+            cov_mat = np.cov(log_returns.T.values) + np.eye(len(tickers)) * 1e-10
             
-            # 最小投資割合のバリデーションチェック(全銘柄均等以上の最小割合は許容しない)
             N = len(tickers)
-            if min_weight >= (1 / N):
-                st.error(f"{t('error_min_weight_large')} {1/N:.4f}）．")
-                st.session_state.calculating = False
-                st.stop()
+            
+            # 最小投資割合チェック
+            if min_weight >= 1 / N:
+                raise ValueError(t("error_min_weight_large").format(limit=1/N))
             if min_weight < 0 or min_weight >= 0.5:
-                st.error(t("error_min_weight_range"))
-                st.session_state.calculating = False
-                st.stop()
+                raise ValueError(t("error_min_weight_range"))
             
-            # 共分散行列に微小な正規化を加える(数値誤差防止)
-            cov_matrix += np.eye(len(cov_matrix)) * 1e-10
+            # リスクフリーレートをスパンに変換
+            span = st.session_state.get("span", t("daily"))
+            if span == t("daily"):
+                rf_span = rf_rate / 252
+            elif span == t("weekly"):
+                rf_span = rf_rate / 52
+            else:
+                rf_span = rf_rate / 12
             
-            # 銘柄数
-            N = len(mean_returns)
+            # ターゲットリターン設定
+            max_w = 1 - min_weight * (N - 1)
+            max_r = max(mean_ret) * max_w + (sum(mean_ret) - max(mean_ret)) * min_weight
+            min_r = min(mean_ret) * max_w + (sum(mean_ret) - min(mean_ret)) * min_weight
+            eps = 1e-6
+            targets = np.linspace(min_r + eps, max_r - eps, int(num_steps))
             
-            # リターン(期待利益率)に関する統計量を取得
-            sum_r = np.sum(mean_returns)  # リターンの合計
-            max_r = np.max(mean_returns)  # 最大リターン
-            min_r = np.min(mean_returns)  # 最小リターン
+            # 最小分散フロンティア計算
+            def port_vol(w, cov):
+                return np.sqrt(w.T @ cov @ w)
             
-            # 最大リターンポートフォリオの期待利益率の計算
-            max_weight = 1 - min_weight * (N - 1)
-            max_return = max_r * max_weight + (sum_r - max_r) * min_weight
+            frontier_vol, frontier_w = [], []
             
-            # 最小リターンポートフォリオの期待利益率の計算
-            min_return = min_r * max_weight + (sum_r - min_r) * min_weight
-            
-            # 数値誤差防止のための微小値を設定
-            epsilon = 1e-6
-            
-            # 指定された段階数に応じてターゲットリターンを等間隔に設定
-            target_returns = np.linspace(min_return + epsilon, max_return - epsilon, int(num_steps))
-            
-            # ポートフォリオのリスク(標準偏差)を計算する関数を定義
-            def calculate_portfolio_volatility(weights, cov_matrix):
-                return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-            
-            # 各ターゲットリターンに対する最小リスク点を求めるリスト
-            frontier_vol = []
-            frontier_weights = []
-            
-            # 最小分散フロンティアの各点を最適化で求める
-            for target in target_returns:
-                # 最適化条件
-                constraints = (
-                    {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},  # ウェイトの合計は1
-                    {'type': 'eq', 'fun': lambda w: np.dot(w, mean_returns) - target}  # 指定ターゲットリターンを達成
+            for tgt in targets:
+                cons = (
+                    {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+                    {'type': 'eq', 'fun': lambda w, t=tgt: w @ mean_ret - t}
                 )
-                # 各銘柄のウェイトの上下限(最小投資割合以上)
-                bounds = tuple((min_weight, 1.0) for _ in range(N))
-                # 初期値は均等配分
-                init_guess = np.array([1/N] * N)
-                # 最適化実行(リスク最小化問題)
-                result = minimize(
-                    calculate_portfolio_volatility,
-                    init_guess,
-                    args=(cov_matrix,),
-                    method='SLSQP',
-                    bounds=bounds,
-                    constraints=constraints,
-                    options={'maxiter': 500, 'ftol': 1e-9}
-                )
-                # 成功した場合のみ結果を格納
-                if result.success:
-                    frontier_vol.append(result.fun)  # 最小リスク
-                    frontier_weights.append(result.x)  # 最適なウェイト配分
+                bounds = [(min_weight, 1.0)] * N
+                res = minimize(port_vol, [1/N]*N, args=(cov_mat,), method='SLSQP',
+                             bounds=bounds, constraints=cons, options={'maxiter': 500, 'ftol': 1e-9})
+                if res.success:
+                    frontier_vol.append(res.fun)
+                    frontier_w.append(res.x)
             
-            # 最適化結果が1点も得られなかった場合はエラー終了
-            if len(frontier_vol) == 0:
-                st.error(t("error_mvf_failed"))
-                st.stop()
-
-            # start_date,end_date,intervalの情報を取得
-            start_date = st.session_state.get("start_date", None)
-            end_date = st.session_state.get("end_date", None)
-            interval = st.session_state.get("interval", None)
-            if None in (start_date, end_date, interval):
-                st.error(t("error_date_not_set"))
-                st.stop()
-
-            # yfinanceで市場ポートフォリオデータ取得
-            market_ticker = st.session_state.get("market_ticker", None)
-            try:
-                market_data = yf.download(market_ticker, start=start_date, end=end_date, interval=interval, progress=False)
-                # ダウンロードの失敗チェック
-                if market_data is None or market_data.empty:
-                    st.error(f"{t('error_market_data_failed')} {market_ticker}")
-                    st.stop()
-                # 市場リターンを計算
-                market_returns = np.log(market_data["Close"] / market_data["Close"].shift(1)).dropna()
-            except Exception as e:
-                st.error(f"{t('error_market_data_fetch')}：{e}")
-                st.stop()
+            if not frontier_vol:
+                raise ValueError(t("error_mvf_failed"))
             
-            # β値の計算
+            # 市場データ取得・β計算
+            start = st.session_state.get("start_date")
+            end = st.session_state.get("end_date")
+            interval = st.session_state.get("interval")
+            
+            # 市場ポートフォリオデータ取得
+            mkt_ticker = yf.Ticker(market_ticker)
+            mkt_hist = mkt_ticker.history(
+                start=start,
+                end=end + timedelta(days=1),
+                interval=interval,
+                auto_adjust=False,
+                prepost=False,
+                repair=True
+            )
+            
+            if mkt_hist is None or mkt_hist.empty:
+                raise ValueError(f"{t('error_market_data_failed')} {market_ticker}")
+            
+            # Adj CloseまたはCloseを取得
+            if 'Adj Close' in mkt_hist.columns:
+                mkt_close = mkt_hist['Adj Close'].copy()
+            elif 'Close' in mkt_hist.columns:
+                mkt_close = mkt_hist['Close'].copy()
+            else:
+                raise ValueError(f"{t('error_market_data_failed')} {market_ticker}")
+            
+            # タイムゾーン処理
+            if hasattr(mkt_close.index, 'tz') and mkt_close.index.tz is not None:
+                mkt_close.index = mkt_close.index.tz_localize(None)
+            
+            # 日付正規化
+            mkt_close.index = mkt_close.index.normalize()
+            mkt_close = mkt_close.dropna()
+            
+            mkt_ret = np.log(mkt_close / mkt_close.shift(1)).dropna()
+            mkt_var = np.var(mkt_ret, ddof=0)
+            
             betas = {}
-            market_returns_array = market_returns.squeeze()
-            market_var = np.var(market_returns_array, ddof=0)
             for code in tickers:
-                combined_df = pd.concat([log_returns[code], market_returns_array], axis=1, join='inner').dropna()
-                if combined_df.shape[0] < 2:
-                    beta = np.nan
+                combo = pd.concat([log_returns[code], mkt_ret], axis=1, join='inner').dropna()
+                if combo.shape[0] < 2:
+                    betas[code] = np.nan
                 else:
-                    cov = np.cov(combined_df.iloc[:, 0], combined_df.iloc[:, 1])[0, 1]
-                    beta = cov / market_var if isinstance(market_var, (int, float)) and market_var != 0 else np.nan
-                betas[code] = beta
-
-            # 計算結果をセッションに保存
+                    cov = np.cov(combo.iloc[:, 0], combo.iloc[:, 1])[0, 1]
+                    betas[code] = cov / mkt_var if mkt_var != 0 else np.nan
+            
             st.session_state.result_data = {
                 "tickers": tickers,
-                "mean_returns": mean_returns,
+                "mean_returns": mean_ret,
                 "std_devs": std_devs,
-                "cov_matrix": cov_matrix,
-                "target_returns": target_returns,
+                "cov_matrix": cov_mat,
+                "target_returns": targets,
                 "frontier_vol": frontier_vol,
-                "frontier_weights": frontier_weights,
+                "frontier_weights": frontier_w,
                 "betas": betas,
-                "market_return_mean": np.mean(market_returns),
-                "risk_free_rate_span": rf_rate_span
+                "market_return_mean": np.mean(mkt_ret),
+                "risk_free_rate_span": rf_span
             }
-        
-        st.session_state.calculating = False
-
+            
+        except Exception as e:
+            st.error(str(e))
+    
+    st.session_state.calculating = False
 
 # ====結果表示====
-
 if st.session_state.result_data:
     st.markdown("---")
     st.markdown(f"## {t('analysis_results')}")
     
     data = st.session_state.result_data
+    close_df = st.session_state.get("close_df")
+    log_returns = st.session_state.get("log_returns")
+    rf_span = data["risk_free_rate_span"]
     
-    # 価格時系列の表示
-    if not use_csv:
-        if close_df is not None and not close_df.empty:
-            with st.expander(t("price_time_series")):
-                close_df_display = close_df.copy()
-                close_df_display.index = close_df_display.index.strftime('%Y/%m/%d')  # 日付をYYYY/MM/DD形式に
-                st.dataframe(close_df_display.round(2), use_container_width=True)
-        else:
-            st.error(t("error_no_price_data"))
-            st.stop()
+    # 価格時系列
+    if not use_csv and close_df is not None and not close_df.empty:
+        with st.expander(t("price_time_series")):
+            disp = close_df.copy()
+            disp.index = [format_date(d) for d in disp.index]
+            st.dataframe(disp.round(2), use_container_width=True)
     
-    # 為替レート（USD/JPY）の表示
-    if st.session_state.get("convert_usd_to_jpy", False):
+    # 為替レート
+    if st.session_state.get("convert_usd_to_jpy") and close_df is not None:
         try:
-            fx_rates = fetch_usd_to_jpy_rates(start_date, end_date, interval)
-            # 1列DataFrameの可能性があるのでSeries化
-            if isinstance(fx_rates, pd.DataFrame):
-                fx_rates = fx_rates["Close"] if "Close" in fx_rates.columns else fx_rates.squeeze()
-            # 価格で使った日付（共通日付）に限定して為替レートを抽出
-            common_dates = close_df.index
-            fx_trimmed = fx_rates.reindex(common_dates).bfill().ffill()
-            fx_df = fx_trimmed.rename("USD/JPY").to_frame()
-            # 為替CSVデータをセッションに一時保存（DL後も再描画維持）
-            st.session_state["fx_display_df"] = fx_df.to_csv(index=True).encode("utf-8")
-            # タイトル
+            fx = fetch_fx_rates(st.session_state.start_date, st.session_state.end_date, st.session_state.interval)
+            if isinstance(fx, pd.DataFrame):
+                fx = fx.squeeze()
+            fx = fx.reindex(close_df.index).bfill().ffill()
+            
             with st.expander(t("fx_rate_display")):
-                # Plotlyグラフ表示（Y軸の下限調整あり）
-                fig_fx = go.Figure()
-                fig_fx.add_trace(go.Scatter(
-                    x=fx_trimmed.index,
-                    y=fx_trimmed.values,
-                    mode='lines+markers',
-                    name='USD/JPY',
-                    line=dict(color='lightblue'),
-                    marker=dict(size=4)
-                ))
-                fig_fx.update_layout(
-                    xaxis_title=t("date_label"),
-                    yaxis_title=t("fx_rate_label"),
-                    yaxis=dict(range=[fx_trimmed.min() * 0.995, fx_trimmed.max() * 1.005]),
-                    plot_bgcolor='black',
-                    paper_bgcolor='black',
-                    font=dict(color='white', family='Meiryo'),
-                    margin=dict(l=50, r=50, t=30, b=50),
-                    height=400
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=fx.index, y=fx.values, mode='lines+markers',
+                                        name='USD/JPY', line=dict(color='lightblue'), marker=dict(size=4)))
+                fig.update_layout(
+                    xaxis_title=t("date_label"), yaxis_title=t("fx_rate_label"),
+                    yaxis=dict(range=[fx.min() * 0.995, fx.max() * 1.005]),
+                    plot_bgcolor='black', paper_bgcolor='black',
+                    font=dict(color='white', family='Meiryo'), height=400
                 )
-                st.plotly_chart(fig_fx, use_container_width=True)
-                # CSVダウンロードボタン
-                st.download_button(
-                    label=t("fx_rate_download"),
-                    data=st.session_state["fx_display_df"],
-                    file_name="usd_jpy_rates.csv",
-                    mime="text/csv",
-                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.download_button(t("fx_rate_download"), fx.to_csv().encode("utf-8"), "usd_jpy_rates.csv", "text/csv")
         except Exception as e:
-            st.warning(f"{t('error_fx_display')}：{e}")
+            st.warning(f"{t('error_fx_display')}: {e}")
     
-    # 銘柄ごとのリスク(log_returns標準偏差)・リターン(log_returns平均)情報を表示
+    # 標準偏差・期待リターン
     with st.expander(t("std_dev_return")):
-        df_mean = pd.DataFrame({
+        df_stats = pd.DataFrame({
             t("ticker_code"): data["tickers"],
             t("std_dev"): data["std_devs"],
             t("expected_return"): data["mean_returns"]
         })
-        st.dataframe(df_mean.style.format({t("std_dev"): "{:.5f}", t("expected_return"): "{:.5f}"}), hide_index=True)
+        st.dataframe(df_stats.style.format({t("std_dev"): "{:.5f}", t("expected_return"): "{:.5f}"}), hide_index=True)
     
-    # 相関行列の可視化（ヒートマップ）
-    with st.expander(t("correlation_matrix")):
-        # ログリターンをセッションから取得
-        log_returns = st.session_state.get("log_returns", None)
-        try:
-            if "log_returns" in st.session_state:
-                log_returns = st.session_state["log_returns"]
-                tickers = log_returns.columns
-                corr_matrix = log_returns.corr()
-                st.session_state["corr_matrix"] = corr_matrix
-            elif "corr_matrix" in st.session_state:
-                corr_matrix = st.session_state["corr_matrix"]
-                tickers = corr_matrix.columns
-            else:
-                st.warning(t("warning_correlation_data"))
-                raise StopIteration
-        
-            corr_matrix = log_returns.corr()
-            fig_corr, ax_corr = plt.subplots()
-            cax = ax_corr.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
-            ax_corr.set_xticks(np.arange(len(tickers)))
-            ax_corr.set_yticks(np.arange(len(tickers)))
-            ax_corr.set_xticklabels(tickers, color='white', rotation=45, ha='right')
-            ax_corr.set_yticklabels(tickers, color='white')
-            ax_corr.tick_params(colors='white')
-            cbar = fig_corr.colorbar(cax)
-            cbar.ax.yaxis.set_tick_params(color='white')
-            plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
-            fig_corr.patch.set_facecolor('black')
-            ax_corr.set_facecolor('black')
-            st.pyplot(fig_corr)
-
-            # 相関係数のCSVダウンロードボタン
-            st.session_state["corr_matrix_csv"] = corr_matrix.round(5).to_csv(index=True, encoding="utf-8-sig")
-            st.download_button(
-                label=t("correlation_download"),
-                data=st.session_state["corr_matrix_csv"],
-                file_name="correlation_matrix.csv",
-                mime="text/csv"
-            )
-        except Exception as e:
-            st.error(f"{t('error_correlation_display')}: {e}")
-
-    # 最小分散フロンティアと資本市場線の表示
+    # 相関行列
+    if log_returns is not None:
+        with st.expander(t("correlation_matrix")):
+            try:
+                corr = log_returns.corr()
+                fig, ax = plt.subplots()
+                cax = ax.imshow(corr, cmap='coolwarm', vmin=-1, vmax=1)
+                ax.set_xticks(range(len(corr.columns)))
+                ax.set_yticks(range(len(corr.columns)))
+                ax.set_xticklabels(corr.columns, color='white', rotation=45, ha='right')
+                ax.set_yticklabels(corr.columns, color='white')
+                ax.tick_params(colors='white')
+                cbar = fig.colorbar(cax)
+                cbar.ax.yaxis.set_tick_params(color='white')
+                plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
+                fig.patch.set_facecolor('black')
+                ax.set_facecolor('black')
+                st.pyplot(fig)
+                st.download_button(t("correlation_download"), corr.round(5).to_csv().encode("utf-8-sig"), "correlation_matrix.csv", "text/csv")
+            except Exception as e:
+                st.error(f"{t('error_correlation_display')}: {e}")
+    
+    # MVF & CML
     with st.expander(t("mvf_cml_display")):
-        if data["frontier_vol"] is None or len(data["frontier_vol"]) == 0:
+        if not data["frontier_vol"]:
             st.error(t("error_mvf_not_calculated"))
         else:
-            # 最小分散点のインデックス
-            min_index = np.nanargmin(data["frontier_vol"])
-            efficient_vol = data["frontier_vol"][min_index:]
-            efficient_returns = data["target_returns"][min_index:]
+            fv = data["frontier_vol"]
+            tr = data["target_returns"]
             
-            # シャープレシオ最大点
-            sharpe_ratios = (np.array(data["target_returns"]) - rf_rate_span) / np.array(data["frontier_vol"])
-            max_sharpe_idx = np.nanargmax(sharpe_ratios)
-            max_std = data["frontier_vol"][max_sharpe_idx]
-            max_return = data["target_returns"][max_sharpe_idx]
+            min_idx = np.nanargmin(fv)
+            eff_vol = fv[min_idx:]
+            eff_ret = tr[min_idx:]
             
-            # CML描画用データ
+            sharpe = (np.array(tr) - rf_span) / np.array(fv)
+            max_sh_idx = np.nanargmax(sharpe)
+            max_std, max_ret = fv[max_sh_idx], tr[max_sh_idx]
+            
             cml_x = np.linspace(0, max_std * 2, 100)
-            cml_y = rf_rate_span + ((max_return - rf_rate_span) / max_std) * cml_x
+            cml_y = rf_span + ((max_ret - rf_span) / max_std) * cml_x
             
-            # Plotlyグラフ作成
             fig = go.Figure()
+            fig.add_trace(go.Scatter(x=fv, y=tr, mode="lines", name="MVF", line=dict(color="gray", width=1)))
+            fig.add_trace(go.Scatter(x=eff_vol, y=eff_ret, mode="lines", name="EF", line=dict(color="cyan", width=2)))
+            fig.add_trace(go.Scatter(x=[fv[min_idx]], y=[tr[min_idx]], mode="markers", name="MVP", marker=dict(size=5, color="red")))
+            fig.add_trace(go.Scatter(x=cml_x, y=cml_y, mode="lines", name="CML", line=dict(color="gold", width=2)))
+            fig.add_trace(go.Scatter(x=[0, max(fv) * 1.05], y=[rf_span, rf_span], mode="lines", name=f"RFR ({rf_span:.3%})", line=dict(color="pink", dash="dot", width=1)))
             
-            # MVF（全体）
-            fig.add_trace(go.Scatter(
-                x=data["frontier_vol"],
-                y=data["target_returns"],
-                mode="lines",
-                name="MVF",
-                line=dict(color="gray", width=1), 
-                zorder=3
-            ))
-            
-            # 効率的フロンティア(EF)（MVFの右側）
-            fig.add_trace(go.Scatter(
-                x=efficient_vol,
-                y=efficient_returns,
-                mode="lines",
-                name="EF",
-                line=dict(color="cyan", width=2), 
-                zorder=4
-            ))
-            
-            # 最小分散ポートフォリオ
-            fig.add_trace(go.Scatter(
-                x=[data["frontier_vol"][min_index]],
-                y=[data["target_returns"][min_index]],
-                mode="markers",
-                name="MVP",
-                marker=dict(size=5, color="red", symbol="circle"), 
-                zorder=5
-            ))
-            
-            # CML
-            fig.add_trace(go.Scatter(
-                x=cml_x,
-                y=cml_y,
-                mode="lines",
-                name="CML",
-                line=dict(color="gold", width=2), 
-                zorder=2
-            ))
-            
-            # 無リスク利子率線
-            fig.add_trace(go.Scatter(
-                x=[0, max(data["frontier_vol"]) * 1.05],
-                y=[rf_rate_span, rf_rate_span],
-                mode="lines",
-                name=f"RFR ({rf_rate_span:.3%})",
-                line=dict(color="pink", dash="dot", width=1), 
-                zorder=1
-            ))
-            
-            # レイアウト設定
             fig.update_layout(
                 xaxis=dict(title=t("std_dev"), showgrid=False),
-                yaxis=dict(title=t("expected_return"), range=[min(rf_rate_span * 0.9, min(data["target_returns"]) * 0.9),
-                                                            max(data["target_returns"]) * 1.1], showgrid=False),
-                plot_bgcolor="black",
-                paper_bgcolor="black",
+                yaxis=dict(title=t("expected_return"), range=[min(rf_span * 0.9, min(tr) * 0.9), max(tr) * 1.1], showgrid=False),
+                plot_bgcolor="black", paper_bgcolor="black",
                 font=dict(color="white", family='Meiryo'),
-                legend=dict(x=1.02, y=1, borderwidth=0),
-                margin=dict(r=150)
+                legend=dict(x=1.02, y=1, borderwidth=0), margin=dict(r=150)
             )
-
-            # 表示
             st.plotly_chart(fig, use_container_width=True)
-
-            # 各期待利益率における標準偏差と投資割合をCSVとしてダウンロード
-            weight_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
-            weight_df.insert(0, t("std_dev"), data["frontier_vol"])
-            weight_df.insert(1, t("expected_return"), data["target_returns"])
-            weight_df = weight_df.sort_values(by=t("expected_return"), ascending=False)
-            st.session_state["frontier_weights_csv"] = weight_df.to_csv(index=False).encode("utf-8-sig")
-            st.download_button(
-                label=t("mvf_cml_download"),
-                data=st.session_state["frontier_weights_csv"],
-                file_name="frontier_weights.csv",
-                mime="text/csv"
-            )
+            
+            w_df = pd.DataFrame(data["frontier_weights"], columns=data["tickers"])
+            w_df.insert(0, t("std_dev"), fv)
+            w_df.insert(1, t("expected_return"), tr)
+            w_df = w_df.sort_values(by=t("expected_return"), ascending=False)
+            st.download_button(t("mvf_cml_download"), w_df.to_csv(index=False).encode("utf-8-sig"), "frontier_weights.csv", "text/csv")
     
-    # 証券市場線(SML)を表示
+    # SML
     with st.expander(t("sml_display")):
-        # データ
-        beta_vals = np.array(list(data["betas"].values()))
-        expected_returns = np.array([data["mean_returns"][data["tickers"].index(code)] for code in data["betas"].keys()])
-        rf = data["risk_free_rate_span"]
+        betas = data["betas"]
+        beta_vals = np.array(list(betas.values()))
+        exp_ret = np.array([data["mean_returns"][data["tickers"].index(c)] for c in betas.keys()])
         rm = data["market_return_mean"]
+        
         x_vals = np.linspace(0, max(2.5, beta_vals.max() * 1.2), 100)
-        sml_y = rf + (rm - rf) * x_vals
-
-        # SMLライン
-        sml_line = go.Scatter(
-            x=x_vals,
-            y=sml_y,
-            mode='lines',
-            name=f'SML ({st.session_state.market_ticker})',
-            line=dict(width=1, color='gold')
-        )
-
-        # 各銘柄の点
-        tickers_label = t("tickers") if st.session_state.language == "ja" else "Tickers"
-        stock_points = go.Scatter(
-            x=beta_vals,
-            y=expected_returns,
-            mode='markers+text',
-            name=tickers_label,
-            text=list(data["betas"].keys()),
-            textposition="top center",
-            textfont=dict(size=10, color='lightgray'),
-            marker=dict(size=5, color='lightblue')
-        )
-
-        # 無リスク利子率の横線
-        rf_line = go.Scatter(
-            x=[0, max(x_vals)],
-            y=[rf, rf],
-            mode='lines',
-            name=f'RFR ({rf:.3%})',
-            line=dict(color="pink", dash="dot", width=1)
-        )
-
-        # レイアウト
-        layout = go.Layout(
+        sml_y = rf_span + (rm - rf_span) * x_vals
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=x_vals, y=sml_y, mode='lines', name=f'SML ({market_ticker})', line=dict(width=1, color='gold')))
+        fig.add_trace(go.Scatter(x=beta_vals, y=exp_ret, mode='markers+text', name=t("tickers"),
+                                text=list(betas.keys()), textposition="top center",
+                                textfont=dict(size=10, color='lightgray'), marker=dict(size=5, color='lightblue')))
+        fig.add_trace(go.Scatter(x=[0, max(x_vals)], y=[rf_span, rf_span], mode='lines',
+                                name=f'RFR ({rf_span:.3%})', line=dict(color="pink", dash="dot", width=1)))
+        
+        fig.update_layout(
             xaxis=dict(title=t("beta"), showgrid=False),
             yaxis=dict(title=t("expected_return"), showgrid=False),
-            plot_bgcolor='black',
-            paper_bgcolor='black',
+            plot_bgcolor='black', paper_bgcolor='black',
             font=dict(color='white', family='Meiryo'),
             legend=dict(x=1.05, y=1, borderwidth=0)
         )
-        
-        fig = go.Figure(data=[sml_line, stock_points, rf_line], layout=layout)
-        
-        # 表示
         st.plotly_chart(fig, use_container_width=True)
+        
+        beta_df = pd.DataFrame({t("ticker_code"): list(betas.keys()), t("beta_value"): list(betas.values())})
+        st.download_button(t("beta_download"), beta_df.to_csv(index=False).encode("utf-8-sig"), "beta.csv", "text/csv")
 
-        # 各銘柄のβ値をCSVとしてダウンロード
-        beta_df = pd.DataFrame({
-            t("ticker_code"): list(data["betas"].keys()),
-            t("beta_value"): list(data["betas"].values())
-        })
-        st.session_state["beta_csv"] = beta_df.to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            label=t("beta_download"),
-            data=st.session_state["beta_csv"],
-            file_name="beta.csv",
-            mime="text/csv"
-        )
-
-
-# コメント
+# フッター
 st.markdown(f"""
-    <hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
-    <div style='text-align: left; font-size: 0.8rem; color: gray;'>
-        {t("disclaimer")}
-    </div>
+<hr style="margin-top: 3rem; margin-bottom: 1rem; border: none; border-top: 1px solid #444;">
+<div style='text-align: left; font-size: 0.8rem; color: gray;'>{t("disclaimer")}</div>
 """, unsafe_allow_html=True)
