@@ -26,7 +26,7 @@ from io import StringIO
 # 数学・統計処理(最小分散フロンティアの計算)
 from scipy.optimize import minimize
 # 日付操作(前営業日の取得など)
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 # プロット用ライブラリ
 import matplotlib.pyplot as plt
 # グラフ描画用ライブラリ
@@ -325,39 +325,140 @@ def load_japan_stocks():
         st.warning(f"{t('warning_jp_stock_list_failed')}: {e}")
         return None
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # 1時間キャッシュ
 def fetch_fx_rates(start, end, interval):
-    """ドル円レート取得"""
-    ticker = yf.Ticker("JPY=X")
-    hist = ticker.history(
-        start=start,
-        end=end + timedelta(days=1),
-        interval=interval,
-        auto_adjust=False,
-        prepost=False,
-        repair=True
-    )
+    """
+    ドル円レート取得（複数の方法でフォールバック）
+    為替レートは株式と異なる取得方法が必要な場合がある
+    """
+    import warnings
+    warnings.filterwarnings('ignore')
     
-    if hist is None or hist.empty:
-        raise ValueError("FX rate fetch failed")
+    fx_symbol = "JPY=X"
     
-    # Close列を取得
-    if 'Adj Close' in hist.columns:
-        fx = hist['Adj Close'].copy()
-    elif 'Close' in hist.columns:
-        fx = hist['Close'].copy()
+    # 日付をdatetime型に変換
+    if isinstance(start, date) and not isinstance(start, datetime):
+        start_dt = datetime.combine(start, datetime.min.time())
     else:
-        raise ValueError("FX rate fetch failed - no Close column")
+        start_dt = start
     
-    # タイムゾーン処理
-    if hasattr(fx.index, 'tz') and fx.index.tz is not None:
-        fx.index = fx.index.tz_localize(None)
+    if isinstance(end, date) and not isinstance(end, datetime):
+        end_dt = datetime.combine(end, datetime.min.time())
+    else:
+        end_dt = end
     
-    # 日付正規化
-    fx.index = fx.index.normalize()
+    # 方法1: yf.download()を使用（為替レートに最も安定）
+    try:
+        fx_data = yf.download(
+            fx_symbol,
+            start=start_dt,
+            end=end_dt + timedelta(days=1),
+            interval=interval,
+            progress=False,
+            auto_adjust=True
+        )
+        
+        if fx_data is not None and not fx_data.empty:
+            # Close列を取得
+            if 'Close' in fx_data.columns:
+                fx = fx_data['Close'].copy()
+            elif isinstance(fx_data.columns, pd.MultiIndex):
+                # MultiIndexの場合
+                close_cols = [col for col in fx_data.columns if 'Close' in str(col)]
+                if close_cols:
+                    fx = fx_data[close_cols[0]].copy()
+                else:
+                    fx = fx_data.iloc[:, 0].copy()
+            else:
+                fx = fx_data.iloc[:, 0].copy()
+            
+            # Series化
+            if isinstance(fx, pd.DataFrame):
+                fx = fx.squeeze()
+            
+            # タイムゾーン処理
+            if hasattr(fx.index, 'tz') and fx.index.tz is not None:
+                fx.index = fx.index.tz_localize(None)
+            
+            # 日付正規化
+            fx.index = pd.to_datetime(fx.index).normalize()
+            fx = fx.dropna().sort_index()
+            
+            if len(fx) > 5:  # 十分なデータがある場合
+                return fx
+    except Exception:
+        pass
     
-    return fx.dropna().sort_index()
-
+    # 方法2: ticker.history()を使用
+    try:
+        ticker = yf.Ticker(fx_symbol)
+        hist = ticker.history(
+            start=start_dt,
+            end=end_dt + timedelta(days=1),
+            interval=interval,
+            auto_adjust=True
+        )
+        
+        if hist is not None and not hist.empty and 'Close' in hist.columns:
+            fx = hist['Close'].copy()
+            
+            if hasattr(fx.index, 'tz') and fx.index.tz is not None:
+                fx.index = fx.index.tz_localize(None)
+            
+            fx.index = pd.to_datetime(fx.index).normalize()
+            fx = fx.dropna().sort_index()
+            
+            if len(fx) > 5:
+                return fx
+    except Exception:
+        pass
+    
+    # 方法3: 期間を分割して取得
+    try:
+        all_data = []
+        current_start = start_dt
+        chunk_days = 30  # 30日ずつ取得
+        
+        while current_start < end_dt:
+            current_end = min(current_start + timedelta(days=chunk_days), end_dt)
+            
+            chunk_data = yf.download(
+                fx_symbol,
+                start=current_start,
+                end=current_end + timedelta(days=1),
+                interval=interval,
+                progress=False,
+                auto_adjust=True
+            )
+            
+            if chunk_data is not None and not chunk_data.empty:
+                if 'Close' in chunk_data.columns:
+                    all_data.append(chunk_data['Close'])
+                elif isinstance(chunk_data.columns, pd.MultiIndex):
+                    close_cols = [col for col in chunk_data.columns if 'Close' in str(col)]
+                    if close_cols:
+                        all_data.append(chunk_data[close_cols[0]])
+            
+            current_start = current_end + timedelta(days=1)
+            time.sleep(0.1)  # レート制限回避
+        
+        if all_data:
+            fx = pd.concat(all_data)
+            if isinstance(fx, pd.DataFrame):
+                fx = fx.squeeze()
+            
+            if hasattr(fx.index, 'tz') and fx.index.tz is not None:
+                fx.index = fx.index.tz_localize(None)
+            
+            fx.index = pd.to_datetime(fx.index).normalize()
+            fx = fx.dropna().drop_duplicates().sort_index()
+            
+            if len(fx) > 5:
+                return fx
+    except Exception:
+        pass
+    
+    raise ValueError("FX rate fetch failed - all methods failed")
 def fetch_single_asset(args):
     """単一銘柄データ取得"""
     symbol, start, end, interval = args
@@ -457,17 +558,38 @@ def fetch_prices(symbols, start, end, interval):
     
     # 為替換算
     if st.session_state.get("convert_usd_to_jpy"):
-        try:
-            fx = fetch_fx_rates(start, end, interval)
-            if isinstance(fx, pd.DataFrame):
-                fx = fx.squeeze()
-            for sym in df.columns:
-                if not sym.endswith(".T"):
-                    aligned = fx.reindex(df.index).ffill().bfill()
-                    if len(aligned) == len(df.index):
-                        df[sym] = df[sym] * aligned
-        except Exception as e:
-            st.warning(f"{t('warning_fx_conversion_failed')}: {e}")
+        # 米国銘柄があるかチェック
+        us_symbols = [sym for sym in df.columns if not sym.endswith(".T")]
+        
+        if us_symbols:
+            try:
+                # 為替レートを取得
+                fx = fetch_fx_rates(start, end, interval)
+                if isinstance(fx, pd.DataFrame):
+                    fx = fx.squeeze()
+                # 為替レートの日付インデックスを正規化
+                fx.index = pd.to_datetime(fx.index).normalize()
+                # 株価データの日付インデックスも正規化
+                df.index = pd.to_datetime(df.index).normalize()
+                # 全期間をカバーするために、株価データの日付範囲で為替レートを補完
+                all_dates = df.index
+                # 為替レートを株価の日付に合わせてリサンプル
+                fx_aligned = fx.reindex(all_dates)
+                # 欠損値を前方補完→後方補完で埋める
+                fx_aligned = fx_aligned.ffill().bfill()
+                # まだ欠損がある場合は、最も近い有効値で補完
+                if fx_aligned.isna().any():
+                    # 為替レートの平均値で埋める
+                    fx_mean = fx.mean()
+                    fx_aligned = fx_aligned.fillna(fx_mean)
+                
+                # 米国銘柄のみ換算
+                for sym in us_symbols:
+                    if sym in df.columns:
+                        df[sym] = df[sym] * fx_aligned.values
+                
+            except Exception as e:
+                st.warning(f"{t('warning_fx_conversion_failed')}: {e}")
     
     return df
 
